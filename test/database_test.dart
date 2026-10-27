@@ -56,6 +56,59 @@ void main() {
       final habits = await db.getActiveHabits();
       expect(habits.isEmpty, isTrue);
     });
+
+    test('Can create habit with schedule, start date, and reminder', () async {
+      final startDate = DateTime(2026, 11, 1);
+      final id = await db.addHabit(
+        'Read Book',
+        description: 'Read 30 mins before sleep',
+        category: 'Learning',
+        scheduleType: 'specific_days',
+        scheduleDays: '1,3,5',
+        startDate: startDate,
+        reminderTime: '21:30',
+        isReminderEnabled: true,
+      );
+
+      final habit = await db.getHabitById(id);
+      expect(habit, isNotNull);
+      expect(habit!.description, 'Read 30 mins before sleep');
+      expect(habit.scheduleType, 'specific_days');
+      expect(habit.scheduleDays, '1,3,5');
+      expect(habit.reminderTime, '21:30');
+      expect(habit.isReminderEnabled, isTrue);
+    });
+
+    test('Can archive and unarchive habit without losing data', () async {
+      final id = await db.addHabit('Workout', category: 'Fitness');
+      await db.toggleCheckIn(id, '2026-10-27', difficulty: 7);
+
+      // Initially active
+      var active = await db.getActiveHabits();
+      var archived = await db.getArchivedHabits();
+      expect(active.length, 1);
+      expect(archived.isEmpty, isTrue);
+
+      // Archive
+      await db.archiveHabit(id);
+      active = await db.getActiveHabits();
+      archived = await db.getArchivedHabits();
+      expect(active.isEmpty, isTrue);
+      expect(archived.length, 1);
+      expect(archived.first.name, 'Workout');
+
+      // Check-ins preserved
+      final checkIns = await db.getCheckInsForHabit(id);
+      expect(checkIns.length, 1);
+      expect(checkIns.first.difficulty, 7);
+
+      // Unarchive
+      await db.unarchiveHabit(id);
+      active = await db.getActiveHabits();
+      archived = await db.getArchivedHabits();
+      expect(active.length, 1);
+      expect(archived.isEmpty, isTrue);
+    });
   });
 
   group('Check-ins, 1-10 Difficulty Scale, & Retention Tracking', () {

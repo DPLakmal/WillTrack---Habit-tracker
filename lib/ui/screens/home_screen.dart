@@ -8,6 +8,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/habit_dialog.dart';
 import '../widgets/habit_tile.dart';
 import 'habit_detail_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -25,9 +26,16 @@ class HomeScreen extends StatelessWidget {
     if (result != null && result.name.isNotEmpty) {
       await provider.addHabit(
         result.name,
+        description: result.description,
         category: result.category,
         symbol: result.symbol,
         colorValue: result.colorValue,
+        scheduleType: result.scheduleType,
+        scheduleDays: result.scheduleDays,
+        weeklyTargetDays: result.weeklyTargetDays,
+        startDate: result.startDate,
+        reminderTime: result.reminderTime,
+        isReminderEnabled: result.isReminderEnabled,
       );
     }
   }
@@ -40,9 +48,16 @@ class HomeScreen extends StatelessWidget {
       builder: (ctx) => HabitDialog(
         title: 'Edit Habit',
         initialName: habit.name,
+        initialDescription: habit.description,
         initialCategory: habit.category,
         initialSymbol: habit.symbol,
         initialColor: habit.colorValue,
+        initialScheduleType: habit.scheduleType,
+        initialScheduleDays: habit.scheduleDays,
+        initialWeeklyTargetDays: habit.weeklyTargetDays,
+        initialStartDate: habit.startDate,
+        initialReminderTime: habit.reminderTime,
+        initialIsReminderEnabled: habit.isReminderEnabled,
         confirmLabel: 'Update',
       ),
     );
@@ -51,9 +66,33 @@ class HomeScreen extends StatelessWidget {
       await provider.editHabit(
         habit.id,
         result.name,
+        description: result.description,
         category: result.category,
         symbol: result.symbol,
         colorValue: result.colorValue,
+        scheduleType: result.scheduleType,
+        scheduleDays: result.scheduleDays,
+        weeklyTargetDays: result.weeklyTargetDays,
+        startDate: result.startDate,
+        reminderTime: result.reminderTime,
+        isReminderEnabled: result.isReminderEnabled,
+      );
+    }
+  }
+
+  Future<void> _archiveHabit(BuildContext context, Habit habit) async {
+    final provider = context.read<HabitProvider>();
+    await provider.archiveHabit(habit.id);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Archived "${habit.name}"'),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () => provider.unarchiveHabit(habit.id),
+          ),
+        ),
       );
     }
   }
@@ -103,6 +142,42 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('My Habits'),
         actions: [
+          // Settings Pill
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Container(
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.15)
+                      : Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+              child: IconButton(
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
+                tooltip: 'Settings',
+                icon: Icon(
+                  Icons.settings_outlined,
+                  size: 20,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SettingsScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
           // Apple Glass Theme Toggle Pill
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -303,6 +378,8 @@ class HomeScreen extends StatelessWidget {
                                   provider.markHabitDifficulty(item.habit.id, score),
                               onEdit: () => _showEditHabitDialog(
                                   context, item.habit),
+                              onArchive: () =>
+                                  _archiveHabit(context, item.habit),
                               onDelete: () => _confirmDeleteHabit(
                                   context, item.habit.id, item.habit.name),
                             );

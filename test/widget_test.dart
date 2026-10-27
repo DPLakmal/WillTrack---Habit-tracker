@@ -112,6 +112,11 @@ void main() {
         colorValue: 0xFF06B6D4,
         createdAt: DateTime.now(),
         isArchived: false,
+        scheduleType: 'daily',
+        scheduleDays: '',
+        weeklyTargetDays: 7,
+        startDate: DateTime.now(),
+        isReminderEnabled: false,
       );
 
       await tester.pumpWidget(
@@ -126,6 +131,7 @@ void main() {
               onToggle: () {},
               onSelectDifficulty: (score) => selectedDiff = score,
               onEdit: () {},
+              onArchive: () {},
               onDelete: () {},
             ),
           ),
@@ -152,6 +158,11 @@ void main() {
         colorValue: 0xFF06B6D4,
         createdAt: DateTime.now(),
         isArchived: false,
+        scheduleType: 'daily',
+        scheduleDays: '',
+        weeklyTargetDays: 7,
+        startDate: DateTime.now(),
+        isReminderEnabled: false,
       );
 
       await tester.pumpWidget(
@@ -167,6 +178,7 @@ void main() {
               onToggle: () {},
               onSelectDifficulty: (_) {},
               onEdit: () {},
+              onArchive: () {},
               onDelete: () {},
             ),
           ),
@@ -187,6 +199,11 @@ void main() {
         colorValue: 0xFF06B6D4,
         createdAt: DateTime.now(),
         isArchived: false,
+        scheduleType: 'daily',
+        scheduleDays: '',
+        weeklyTargetDays: 7,
+        startDate: DateTime.now(),
+        isReminderEnabled: false,
       );
 
       final stats = HabitStats(

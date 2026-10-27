@@ -34,6 +34,17 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _categoryMeta = const VerificationMeta(
     'category',
   );
@@ -68,17 +79,79 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0xFF10B981),
   );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
+  static const VerificationMeta _scheduleTypeMeta = const VerificationMeta(
+    'scheduleType',
   );
   @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
+  late final GeneratedColumn<String> scheduleType = GeneratedColumn<String>(
+    'schedule_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('daily'),
+  );
+  static const VerificationMeta _scheduleDaysMeta = const VerificationMeta(
+    'scheduleDays',
+  );
+  @override
+  late final GeneratedColumn<String> scheduleDays = GeneratedColumn<String>(
+    'schedule_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _weeklyTargetDaysMeta = const VerificationMeta(
+    'weeklyTargetDays',
+  );
+  @override
+  late final GeneratedColumn<int> weeklyTargetDays = GeneratedColumn<int>(
+    'weekly_target_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(7),
+  );
+  static const VerificationMeta _startDateMeta = const VerificationMeta(
+    'startDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+    'start_date',
     aliasedName,
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _reminderTimeMeta = const VerificationMeta(
+    'reminderTime',
+  );
+  @override
+  late final GeneratedColumn<String> reminderTime = GeneratedColumn<String>(
+    'reminder_time',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isReminderEnabledMeta = const VerificationMeta(
+    'isReminderEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> isReminderEnabled = GeneratedColumn<bool>(
+    'is_reminder_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_reminder_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
   );
   static const VerificationMeta _isArchivedMeta = const VerificationMeta(
     'isArchived',
@@ -95,15 +168,34 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     name,
+    description,
     category,
     symbol,
     colorValue,
-    createdAt,
+    scheduleType,
+    scheduleDays,
+    weeklyTargetDays,
+    startDate,
+    reminderTime,
+    isReminderEnabled,
     isArchived,
+    createdAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -128,6 +220,15 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
     if (data.containsKey('category')) {
       context.handle(
         _categoryMeta,
@@ -146,16 +247,67 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
       );
     }
-    if (data.containsKey('created_at')) {
+    if (data.containsKey('schedule_type')) {
       context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+        _scheduleTypeMeta,
+        scheduleType.isAcceptableOrUnknown(
+          data['schedule_type']!,
+          _scheduleTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('schedule_days')) {
+      context.handle(
+        _scheduleDaysMeta,
+        scheduleDays.isAcceptableOrUnknown(
+          data['schedule_days']!,
+          _scheduleDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('weekly_target_days')) {
+      context.handle(
+        _weeklyTargetDaysMeta,
+        weeklyTargetDays.isAcceptableOrUnknown(
+          data['weekly_target_days']!,
+          _weeklyTargetDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(
+        _startDateMeta,
+        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+      );
+    }
+    if (data.containsKey('reminder_time')) {
+      context.handle(
+        _reminderTimeMeta,
+        reminderTime.isAcceptableOrUnknown(
+          data['reminder_time']!,
+          _reminderTimeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_reminder_enabled')) {
+      context.handle(
+        _isReminderEnabledMeta,
+        isReminderEnabled.isAcceptableOrUnknown(
+          data['is_reminder_enabled']!,
+          _isReminderEnabledMeta,
+        ),
       );
     }
     if (data.containsKey('is_archived')) {
       context.handle(
         _isArchivedMeta,
         isArchived.isAcceptableOrUnknown(data['is_archived']!, _isArchivedMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
     return context;
@@ -175,6 +327,10 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
       category: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}category'],
@@ -187,13 +343,37 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.int,
         data['${effectivePrefix}color_value'],
       )!,
-      createdAt: attachedDatabase.typeMapping.read(
+      scheduleType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}schedule_type'],
+      )!,
+      scheduleDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}schedule_days'],
+      )!,
+      weeklyTargetDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}weekly_target_days'],
+      )!,
+      startDate: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
+        data['${effectivePrefix}start_date'],
+      )!,
+      reminderTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reminder_time'],
+      ),
+      isReminderEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_reminder_enabled'],
       )!,
       isArchived: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_archived'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
       )!,
     );
   }
@@ -207,30 +387,55 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
 class Habit extends DataClass implements Insertable<Habit> {
   final int id;
   final String name;
+  final String? description;
   final String category;
   final String symbol;
   final int colorValue;
-  final DateTime createdAt;
+  final String scheduleType;
+  final String scheduleDays;
+  final int weeklyTargetDays;
+  final DateTime startDate;
+  final String? reminderTime;
+  final bool isReminderEnabled;
   final bool isArchived;
+  final DateTime createdAt;
   const Habit({
     required this.id,
     required this.name,
+    this.description,
     required this.category,
     required this.symbol,
     required this.colorValue,
-    required this.createdAt,
+    required this.scheduleType,
+    required this.scheduleDays,
+    required this.weeklyTargetDays,
+    required this.startDate,
+    this.reminderTime,
+    required this.isReminderEnabled,
     required this.isArchived,
+    required this.createdAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
     map['category'] = Variable<String>(category);
     map['symbol'] = Variable<String>(symbol);
     map['color_value'] = Variable<int>(colorValue);
-    map['created_at'] = Variable<DateTime>(createdAt);
+    map['schedule_type'] = Variable<String>(scheduleType);
+    map['schedule_days'] = Variable<String>(scheduleDays);
+    map['weekly_target_days'] = Variable<int>(weeklyTargetDays);
+    map['start_date'] = Variable<DateTime>(startDate);
+    if (!nullToAbsent || reminderTime != null) {
+      map['reminder_time'] = Variable<String>(reminderTime);
+    }
+    map['is_reminder_enabled'] = Variable<bool>(isReminderEnabled);
     map['is_archived'] = Variable<bool>(isArchived);
+    map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
 
@@ -238,11 +443,22 @@ class Habit extends DataClass implements Insertable<Habit> {
     return HabitsCompanion(
       id: Value(id),
       name: Value(name),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
       category: Value(category),
       symbol: Value(symbol),
       colorValue: Value(colorValue),
-      createdAt: Value(createdAt),
+      scheduleType: Value(scheduleType),
+      scheduleDays: Value(scheduleDays),
+      weeklyTargetDays: Value(weeklyTargetDays),
+      startDate: Value(startDate),
+      reminderTime: reminderTime == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderTime),
+      isReminderEnabled: Value(isReminderEnabled),
       isArchived: Value(isArchived),
+      createdAt: Value(createdAt),
     );
   }
 
@@ -254,11 +470,18 @@ class Habit extends DataClass implements Insertable<Habit> {
     return Habit(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String?>(json['description']),
       category: serializer.fromJson<String>(json['category']),
       symbol: serializer.fromJson<String>(json['symbol']),
       colorValue: serializer.fromJson<int>(json['colorValue']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      scheduleType: serializer.fromJson<String>(json['scheduleType']),
+      scheduleDays: serializer.fromJson<String>(json['scheduleDays']),
+      weeklyTargetDays: serializer.fromJson<int>(json['weeklyTargetDays']),
+      startDate: serializer.fromJson<DateTime>(json['startDate']),
+      reminderTime: serializer.fromJson<String?>(json['reminderTime']),
+      isReminderEnabled: serializer.fromJson<bool>(json['isReminderEnabled']),
       isArchived: serializer.fromJson<bool>(json['isArchived']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
   @override
@@ -267,44 +490,84 @@ class Habit extends DataClass implements Insertable<Habit> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String?>(description),
       'category': serializer.toJson<String>(category),
       'symbol': serializer.toJson<String>(symbol),
       'colorValue': serializer.toJson<int>(colorValue),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'scheduleType': serializer.toJson<String>(scheduleType),
+      'scheduleDays': serializer.toJson<String>(scheduleDays),
+      'weeklyTargetDays': serializer.toJson<int>(weeklyTargetDays),
+      'startDate': serializer.toJson<DateTime>(startDate),
+      'reminderTime': serializer.toJson<String?>(reminderTime),
+      'isReminderEnabled': serializer.toJson<bool>(isReminderEnabled),
       'isArchived': serializer.toJson<bool>(isArchived),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
 
   Habit copyWith({
     int? id,
     String? name,
+    Value<String?> description = const Value.absent(),
     String? category,
     String? symbol,
     int? colorValue,
-    DateTime? createdAt,
+    String? scheduleType,
+    String? scheduleDays,
+    int? weeklyTargetDays,
+    DateTime? startDate,
+    Value<String?> reminderTime = const Value.absent(),
+    bool? isReminderEnabled,
     bool? isArchived,
+    DateTime? createdAt,
   }) => Habit(
     id: id ?? this.id,
     name: name ?? this.name,
+    description: description.present ? description.value : this.description,
     category: category ?? this.category,
     symbol: symbol ?? this.symbol,
     colorValue: colorValue ?? this.colorValue,
-    createdAt: createdAt ?? this.createdAt,
+    scheduleType: scheduleType ?? this.scheduleType,
+    scheduleDays: scheduleDays ?? this.scheduleDays,
+    weeklyTargetDays: weeklyTargetDays ?? this.weeklyTargetDays,
+    startDate: startDate ?? this.startDate,
+    reminderTime: reminderTime.present ? reminderTime.value : this.reminderTime,
+    isReminderEnabled: isReminderEnabled ?? this.isReminderEnabled,
     isArchived: isArchived ?? this.isArchived,
+    createdAt: createdAt ?? this.createdAt,
   );
   Habit copyWithCompanion(HabitsCompanion data) {
     return Habit(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
       category: data.category.present ? data.category.value : this.category,
       symbol: data.symbol.present ? data.symbol.value : this.symbol,
       colorValue: data.colorValue.present
           ? data.colorValue.value
           : this.colorValue,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      scheduleType: data.scheduleType.present
+          ? data.scheduleType.value
+          : this.scheduleType,
+      scheduleDays: data.scheduleDays.present
+          ? data.scheduleDays.value
+          : this.scheduleDays,
+      weeklyTargetDays: data.weeklyTargetDays.present
+          ? data.weeklyTargetDays.value
+          : this.weeklyTargetDays,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      reminderTime: data.reminderTime.present
+          ? data.reminderTime.value
+          : this.reminderTime,
+      isReminderEnabled: data.isReminderEnabled.present
+          ? data.isReminderEnabled.value
+          : this.isReminderEnabled,
       isArchived: data.isArchived.present
           ? data.isArchived.value
           : this.isArchived,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
 
@@ -313,11 +576,18 @@ class Habit extends DataClass implements Insertable<Habit> {
     return (StringBuffer('Habit(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('description: $description, ')
           ..write('category: $category, ')
           ..write('symbol: $symbol, ')
           ..write('colorValue: $colorValue, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('isArchived: $isArchived')
+          ..write('scheduleType: $scheduleType, ')
+          ..write('scheduleDays: $scheduleDays, ')
+          ..write('weeklyTargetDays: $weeklyTargetDays, ')
+          ..write('startDate: $startDate, ')
+          ..write('reminderTime: $reminderTime, ')
+          ..write('isReminderEnabled: $isReminderEnabled, ')
+          ..write('isArchived: $isArchived, ')
+          ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
@@ -326,11 +596,18 @@ class Habit extends DataClass implements Insertable<Habit> {
   int get hashCode => Object.hash(
     id,
     name,
+    description,
     category,
     symbol,
     colorValue,
-    createdAt,
+    scheduleType,
+    scheduleDays,
+    weeklyTargetDays,
+    startDate,
+    reminderTime,
+    isReminderEnabled,
     isArchived,
+    createdAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -338,76 +615,132 @@ class Habit extends DataClass implements Insertable<Habit> {
       (other is Habit &&
           other.id == this.id &&
           other.name == this.name &&
+          other.description == this.description &&
           other.category == this.category &&
           other.symbol == this.symbol &&
           other.colorValue == this.colorValue &&
-          other.createdAt == this.createdAt &&
-          other.isArchived == this.isArchived);
+          other.scheduleType == this.scheduleType &&
+          other.scheduleDays == this.scheduleDays &&
+          other.weeklyTargetDays == this.weeklyTargetDays &&
+          other.startDate == this.startDate &&
+          other.reminderTime == this.reminderTime &&
+          other.isReminderEnabled == this.isReminderEnabled &&
+          other.isArchived == this.isArchived &&
+          other.createdAt == this.createdAt);
 }
 
 class HabitsCompanion extends UpdateCompanion<Habit> {
   final Value<int> id;
   final Value<String> name;
+  final Value<String?> description;
   final Value<String> category;
   final Value<String> symbol;
   final Value<int> colorValue;
-  final Value<DateTime> createdAt;
+  final Value<String> scheduleType;
+  final Value<String> scheduleDays;
+  final Value<int> weeklyTargetDays;
+  final Value<DateTime> startDate;
+  final Value<String?> reminderTime;
+  final Value<bool> isReminderEnabled;
   final Value<bool> isArchived;
+  final Value<DateTime> createdAt;
   const HabitsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
+    this.description = const Value.absent(),
     this.category = const Value.absent(),
     this.symbol = const Value.absent(),
     this.colorValue = const Value.absent(),
-    this.createdAt = const Value.absent(),
+    this.scheduleType = const Value.absent(),
+    this.scheduleDays = const Value.absent(),
+    this.weeklyTargetDays = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.reminderTime = const Value.absent(),
+    this.isReminderEnabled = const Value.absent(),
     this.isArchived = const Value.absent(),
+    this.createdAt = const Value.absent(),
   });
   HabitsCompanion.insert({
     this.id = const Value.absent(),
     required String name,
+    this.description = const Value.absent(),
     this.category = const Value.absent(),
     this.symbol = const Value.absent(),
     this.colorValue = const Value.absent(),
-    this.createdAt = const Value.absent(),
+    this.scheduleType = const Value.absent(),
+    this.scheduleDays = const Value.absent(),
+    this.weeklyTargetDays = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.reminderTime = const Value.absent(),
+    this.isReminderEnabled = const Value.absent(),
     this.isArchived = const Value.absent(),
+    this.createdAt = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Habit> custom({
     Expression<int>? id,
     Expression<String>? name,
+    Expression<String>? description,
     Expression<String>? category,
     Expression<String>? symbol,
     Expression<int>? colorValue,
-    Expression<DateTime>? createdAt,
+    Expression<String>? scheduleType,
+    Expression<String>? scheduleDays,
+    Expression<int>? weeklyTargetDays,
+    Expression<DateTime>? startDate,
+    Expression<String>? reminderTime,
+    Expression<bool>? isReminderEnabled,
     Expression<bool>? isArchived,
+    Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
+      if (description != null) 'description': description,
       if (category != null) 'category': category,
       if (symbol != null) 'symbol': symbol,
       if (colorValue != null) 'color_value': colorValue,
-      if (createdAt != null) 'created_at': createdAt,
+      if (scheduleType != null) 'schedule_type': scheduleType,
+      if (scheduleDays != null) 'schedule_days': scheduleDays,
+      if (weeklyTargetDays != null) 'weekly_target_days': weeklyTargetDays,
+      if (startDate != null) 'start_date': startDate,
+      if (reminderTime != null) 'reminder_time': reminderTime,
+      if (isReminderEnabled != null) 'is_reminder_enabled': isReminderEnabled,
       if (isArchived != null) 'is_archived': isArchived,
+      if (createdAt != null) 'created_at': createdAt,
     });
   }
 
   HabitsCompanion copyWith({
     Value<int>? id,
     Value<String>? name,
+    Value<String?>? description,
     Value<String>? category,
     Value<String>? symbol,
     Value<int>? colorValue,
-    Value<DateTime>? createdAt,
+    Value<String>? scheduleType,
+    Value<String>? scheduleDays,
+    Value<int>? weeklyTargetDays,
+    Value<DateTime>? startDate,
+    Value<String?>? reminderTime,
+    Value<bool>? isReminderEnabled,
     Value<bool>? isArchived,
+    Value<DateTime>? createdAt,
   }) {
     return HabitsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
+      description: description ?? this.description,
       category: category ?? this.category,
       symbol: symbol ?? this.symbol,
       colorValue: colorValue ?? this.colorValue,
-      createdAt: createdAt ?? this.createdAt,
+      scheduleType: scheduleType ?? this.scheduleType,
+      scheduleDays: scheduleDays ?? this.scheduleDays,
+      weeklyTargetDays: weeklyTargetDays ?? this.weeklyTargetDays,
+      startDate: startDate ?? this.startDate,
+      reminderTime: reminderTime ?? this.reminderTime,
+      isReminderEnabled: isReminderEnabled ?? this.isReminderEnabled,
       isArchived: isArchived ?? this.isArchived,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
@@ -420,6 +753,9 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
@@ -429,11 +765,29 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     if (colorValue.present) {
       map['color_value'] = Variable<int>(colorValue.value);
     }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
+    if (scheduleType.present) {
+      map['schedule_type'] = Variable<String>(scheduleType.value);
+    }
+    if (scheduleDays.present) {
+      map['schedule_days'] = Variable<String>(scheduleDays.value);
+    }
+    if (weeklyTargetDays.present) {
+      map['weekly_target_days'] = Variable<int>(weeklyTargetDays.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (reminderTime.present) {
+      map['reminder_time'] = Variable<String>(reminderTime.value);
+    }
+    if (isReminderEnabled.present) {
+      map['is_reminder_enabled'] = Variable<bool>(isReminderEnabled.value);
     }
     if (isArchived.present) {
       map['is_archived'] = Variable<bool>(isArchived.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
     }
     return map;
   }
@@ -443,11 +797,18 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     return (StringBuffer('HabitsCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('description: $description, ')
           ..write('category: $category, ')
           ..write('symbol: $symbol, ')
           ..write('colorValue: $colorValue, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('isArchived: $isArchived')
+          ..write('scheduleType: $scheduleType, ')
+          ..write('scheduleDays: $scheduleDays, ')
+          ..write('weeklyTargetDays: $weeklyTargetDays, ')
+          ..write('startDate: $startDate, ')
+          ..write('reminderTime: $reminderTime, ')
+          ..write('isReminderEnabled: $isReminderEnabled, ')
+          ..write('isArchived: $isArchived, ')
+          ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
@@ -929,21 +1290,35 @@ typedef $$HabitsTableCreateCompanionBuilder =
     HabitsCompanion Function({
       Value<int> id,
       required String name,
+      Value<String?> description,
       Value<String> category,
       Value<String> symbol,
       Value<int> colorValue,
-      Value<DateTime> createdAt,
+      Value<String> scheduleType,
+      Value<String> scheduleDays,
+      Value<int> weeklyTargetDays,
+      Value<DateTime> startDate,
+      Value<String?> reminderTime,
+      Value<bool> isReminderEnabled,
       Value<bool> isArchived,
+      Value<DateTime> createdAt,
     });
 typedef $$HabitsTableUpdateCompanionBuilder =
     HabitsCompanion Function({
       Value<int> id,
       Value<String> name,
+      Value<String?> description,
       Value<String> category,
       Value<String> symbol,
       Value<int> colorValue,
-      Value<DateTime> createdAt,
+      Value<String> scheduleType,
+      Value<String> scheduleDays,
+      Value<int> weeklyTargetDays,
+      Value<DateTime> startDate,
+      Value<String?> reminderTime,
+      Value<bool> isReminderEnabled,
       Value<bool> isArchived,
+      Value<DateTime> createdAt,
     });
 
 final class $$HabitsTableReferences
@@ -989,6 +1364,11 @@ class $$HabitsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get category => $composableBuilder(
     column: $table.category,
     builder: (column) => ColumnFilters(column),
@@ -1004,13 +1384,43 @@ class $$HabitsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
+  ColumnFilters<String> get scheduleType => $composableBuilder(
+    column: $table.scheduleType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scheduleDays => $composableBuilder(
+    column: $table.scheduleDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get weeklyTargetDays => $composableBuilder(
+    column: $table.weeklyTargetDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reminderTime => $composableBuilder(
+    column: $table.reminderTime,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isReminderEnabled => $composableBuilder(
+    column: $table.isReminderEnabled,
     builder: (column) => ColumnFilters(column),
   );
 
   ColumnFilters<bool> get isArchived => $composableBuilder(
     column: $table.isArchived,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1059,6 +1469,11 @@ class $$HabitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get category => $composableBuilder(
     column: $table.category,
     builder: (column) => ColumnOrderings(column),
@@ -1074,13 +1489,43 @@ class $$HabitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
+  ColumnOrderings<String> get scheduleType => $composableBuilder(
+    column: $table.scheduleType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scheduleDays => $composableBuilder(
+    column: $table.scheduleDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get weeklyTargetDays => $composableBuilder(
+    column: $table.weeklyTargetDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reminderTime => $composableBuilder(
+    column: $table.reminderTime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isReminderEnabled => $composableBuilder(
+    column: $table.isReminderEnabled,
     builder: (column) => ColumnOrderings(column),
   );
 
   ColumnOrderings<bool> get isArchived => $composableBuilder(
     column: $table.isArchived,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -1100,6 +1545,11 @@ class $$HabitsTableAnnotationComposer
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
 
@@ -1111,13 +1561,41 @@ class $$HabitsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+  GeneratedColumn<String> get scheduleType => $composableBuilder(
+    column: $table.scheduleType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get scheduleDays => $composableBuilder(
+    column: $table.scheduleDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get weeklyTargetDays => $composableBuilder(
+    column: $table.weeklyTargetDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<String> get reminderTime => $composableBuilder(
+    column: $table.reminderTime,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isReminderEnabled => $composableBuilder(
+    column: $table.isReminderEnabled,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isArchived => $composableBuilder(
     column: $table.isArchived,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   Expression<T> checkInsRefs<T extends Object>(
     Expression<T> Function($$CheckInsTableAnnotationComposer a) f,
@@ -1175,37 +1653,65 @@ class $$HabitsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
+                Value<String?> description = const Value.absent(),
                 Value<String> category = const Value.absent(),
                 Value<String> symbol = const Value.absent(),
                 Value<int> colorValue = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
+                Value<String> scheduleType = const Value.absent(),
+                Value<String> scheduleDays = const Value.absent(),
+                Value<int> weeklyTargetDays = const Value.absent(),
+                Value<DateTime> startDate = const Value.absent(),
+                Value<String?> reminderTime = const Value.absent(),
+                Value<bool> isReminderEnabled = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
               }) => HabitsCompanion(
                 id: id,
                 name: name,
+                description: description,
                 category: category,
                 symbol: symbol,
                 colorValue: colorValue,
-                createdAt: createdAt,
+                scheduleType: scheduleType,
+                scheduleDays: scheduleDays,
+                weeklyTargetDays: weeklyTargetDays,
+                startDate: startDate,
+                reminderTime: reminderTime,
+                isReminderEnabled: isReminderEnabled,
                 isArchived: isArchived,
+                createdAt: createdAt,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 required String name,
+                Value<String?> description = const Value.absent(),
                 Value<String> category = const Value.absent(),
                 Value<String> symbol = const Value.absent(),
                 Value<int> colorValue = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
+                Value<String> scheduleType = const Value.absent(),
+                Value<String> scheduleDays = const Value.absent(),
+                Value<int> weeklyTargetDays = const Value.absent(),
+                Value<DateTime> startDate = const Value.absent(),
+                Value<String?> reminderTime = const Value.absent(),
+                Value<bool> isReminderEnabled = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
               }) => HabitsCompanion.insert(
                 id: id,
                 name: name,
+                description: description,
                 category: category,
                 symbol: symbol,
                 colorValue: colorValue,
-                createdAt: createdAt,
+                scheduleType: scheduleType,
+                scheduleDays: scheduleDays,
+                weeklyTargetDays: weeklyTargetDays,
+                startDate: startDate,
+                reminderTime: reminderTime,
+                isReminderEnabled: isReminderEnabled,
                 isArchived: isArchived,
+                createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(

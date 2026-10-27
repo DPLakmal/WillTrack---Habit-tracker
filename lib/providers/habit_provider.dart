@@ -2,18 +2,21 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/database.dart';
+import '../services/notification_service.dart';
 
 class HabitItem {
   final Habit habit;
   final bool isCompletedToday;
   final int? todayDifficulty;
   final String? todayNote;
+  final bool isDueToday;
 
   HabitItem({
     required this.habit,
     required this.isCompletedToday,
     this.todayDifficulty,
     this.todayNote,
+    this.isDueToday = true,
   });
 }
 
@@ -41,11 +44,14 @@ class HabitProvider extends ChangeNotifier {
   final AppDatabase database;
   ThemeMode _themeMode = ThemeMode.system;
   String _selectedCategory = 'All';
+  bool _areNotificationsEnabled = true;
 
   List<Habit> _habits = [];
+  List<Habit> _archivedHabits = [];
   Map<int, CheckIn> _todayCheckInsMap = {};
 
   StreamSubscription? _habitsSubscription;
+  StreamSubscription? _archivedSubscription;
   StreamSubscription? _checkInsSubscription;
 
   HabitProvider({required this.database}) {
@@ -55,12 +61,28 @@ class HabitProvider extends ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
   bool get isDarkMode => _themeMode == ThemeMode.dark;
   String get selectedCategory => _selectedCategory;
+  bool get areNotificationsEnabled => _areNotificationsEnabled;
+  List<Habit> get archivedHabits => _archivedHabits;
 
   void toggleTheme() {
     if (_themeMode == ThemeMode.dark) {
       _themeMode = ThemeMode.light;
     } else {
       _themeMode = ThemeMode.dark;
+    }
+    notifyListeners();
+  }
+
+  void toggleGlobalNotifications(bool enabled) {
+    _areNotificationsEnabled = enabled;
+    if (!enabled) {
+      NotificationService().cancelAll();
+    } else {
+      for (final h in _habits) {
+        if (h.isReminderEnabled) {
+          NotificationService().scheduleHabitReminder(h);
+        }
+      }
     }
     notifyListeners();
   }
@@ -78,6 +100,11 @@ class HabitProvider extends ChangeNotifier {
       notifyListeners();
     });
 
+    _archivedSubscription = database.watchArchivedHabits().listen((archived) {
+      _archivedHabits = archived;
+      notifyListeners();
+    });
+
     _checkInsSubscription =
         (database.select(database.checkIns)..where((tbl) => tbl.date.equals(todayString)))
             .watch()
@@ -92,6 +119,7 @@ class HabitProvider extends ChangeNotifier {
 
   Future<void> refresh() async {
     _habits = await database.getActiveHabits();
+    _archivedHabits = await database.getArchivedHabits();
     final todayList = await (database.select(database.checkIns)
           ..where((tbl) => tbl.date.equals(todayString)))
         .get();
@@ -103,35 +131,82 @@ class HabitProvider extends ChangeNotifier {
   }
 
   List<String> get categories {
-    final defaultCategories = ['All', 'General', 'Fitness', 'Health', 'Learning', 'Mindfulness'];
+    final defaultCategories = [
+      'All',
+      'Fitness',
+      'Learning',
+      'Health',
+      'Productivity',
+      'General',
+      'Mindfulness'
+    ];
     final existingFromHabits = _habits.map((h) => h.category).toSet();
     final combined = {...defaultCategories, ...existingFromHabits}.toList();
     return combined;
   }
 
+  bool isHabitDueOn(Habit habit, DateTime date) {
+    // 1. Start date check
+    final startDay = DateTime(habit.startDate.year, habit.startDate.month, habit.startDate.day);
+    final checkDay = DateTime(date.year, date.month, date.day);
+    if (checkDay.isBefore(startDay)) return false;
+
+    // 2. Schedule type check
+    if (habit.scheduleType == 'daily') return true;
+
+    if (habit.scheduleType == 'specific_days') {
+      final weekday = date.weekday; // 1=Mon ... 7=Sun
+      final days = habit.scheduleDays
+          .split(',')
+          .map((s) => int.tryParse(s.trim()))
+          .whereType<int>()
+          .toSet();
+      return days.isEmpty || days.contains(weekday);
+    }
+
+    if (habit.scheduleType == 'weekly_target') {
+      return true;
+    }
+
+    return true;
+  }
+
   List<HabitItem> get allHabitItems {
+    final now = DateTime.now();
     return _habits.map((habit) {
       final checkIn = _todayCheckInsMap[habit.id];
+      final isDue = isHabitDueOn(habit, now);
+
       return HabitItem(
         habit: habit,
         isCompletedToday: checkIn != null,
         todayDifficulty: checkIn?.difficulty,
         todayNote: checkIn?.note,
+        isDueToday: isDue,
       );
     }).toList();
   }
 
+  /// Habits filtered by category and due today
   List<HabitItem> get habitItems {
     final all = allHabitItems;
-    if (_selectedCategory == 'All') {
-      return all;
+    var filtered = all;
+
+    if (_selectedCategory != 'All') {
+      filtered = all
+          .where((item) =>
+              item.habit.category.toLowerCase() == _selectedCategory.toLowerCase())
+          .toList();
     }
-    return all.where((item) => item.habit.category.toLowerCase() == _selectedCategory.toLowerCase()).toList();
+
+    return filtered;
   }
 
-  int get totalCount => _habits.length;
+  int get totalCount => allHabitItems.where((h) => h.isDueToday).length;
 
-  int get completedCount => _todayCheckInsMap.length;
+  int get completedCount => allHabitItems
+      .where((h) => h.isDueToday && h.isCompletedToday)
+      .length;
 
   double get progressPercentage {
     if (totalCount == 0) return 0.0;
@@ -144,40 +219,100 @@ class HabitProvider extends ChangeNotifier {
 
   Future<void> addHabit(
     String name, {
+    String? description,
     String category = 'General',
     String symbol = 'check',
     int colorValue = 0xFF10B981,
+    String scheduleType = 'daily',
+    String scheduleDays = '',
+    int weeklyTargetDays = 7,
+    DateTime? startDate,
+    String? reminderTime,
+    bool isReminderEnabled = false,
   }) async {
     if (name.trim().isEmpty) return;
-    await database.addHabit(
+    final id = await database.addHabit(
       name,
+      description: description,
       category: category,
       symbol: symbol,
       colorValue: colorValue,
+      scheduleType: scheduleType,
+      scheduleDays: scheduleDays,
+      weeklyTargetDays: weeklyTargetDays,
+      startDate: startDate,
+      reminderTime: reminderTime,
+      isReminderEnabled: isReminderEnabled,
     );
+
+    if (isReminderEnabled && _areNotificationsEnabled) {
+      final habit = await database.getHabitById(id);
+      if (habit != null) {
+        NotificationService().scheduleHabitReminder(habit);
+      }
+    }
     await refresh();
   }
 
   Future<void> editHabit(
     int id,
     String newName, {
-    String category = 'General',
-    String symbol = 'check',
-    int colorValue = 0xFF10B981,
+    String? description,
+    required String category,
+    required String symbol,
+    required int colorValue,
+    String scheduleType = 'daily',
+    String scheduleDays = '',
+    int weeklyTargetDays = 7,
+    DateTime? startDate,
+    String? reminderTime,
+    bool isReminderEnabled = false,
   }) async {
     if (newName.trim().isEmpty) return;
     await database.updateHabitDetails(
       id,
       name: newName,
+      description: description,
       category: category,
       symbol: symbol,
       colorValue: colorValue,
+      scheduleType: scheduleType,
+      scheduleDays: scheduleDays,
+      weeklyTargetDays: weeklyTargetDays,
+      startDate: startDate,
+      reminderTime: reminderTime,
+      isReminderEnabled: isReminderEnabled,
     );
+
+    final habit = await database.getHabitById(id);
+    if (habit != null) {
+      if (isReminderEnabled && _areNotificationsEnabled) {
+        NotificationService().scheduleHabitReminder(habit);
+      } else {
+        NotificationService().cancelHabitReminder(id);
+      }
+    }
+    await refresh();
+  }
+
+  Future<void> archiveHabit(int id) async {
+    await database.archiveHabit(id);
+    NotificationService().cancelHabitReminder(id);
+    await refresh();
+  }
+
+  Future<void> unarchiveHabit(int id) async {
+    await database.unarchiveHabit(id);
+    final habit = await database.getHabitById(id);
+    if (habit != null && habit.isReminderEnabled && _areNotificationsEnabled) {
+      NotificationService().scheduleHabitReminder(habit);
+    }
     await refresh();
   }
 
   Future<void> deleteHabit(int id) async {
     await database.deleteHabit(id);
+    NotificationService().cancelHabitReminder(id);
     await refresh();
   }
 
@@ -355,6 +490,7 @@ class HabitProvider extends ChangeNotifier {
   @override
   void dispose() {
     _habitsSubscription?.cancel();
+    _archivedSubscription?.cancel();
     _checkInsSubscription?.cancel();
     super.dispose();
   }

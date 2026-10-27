@@ -10,6 +10,7 @@ class HabitTile extends StatelessWidget {
   final VoidCallback onToggle;
   final ValueChanged<int> onSelectDifficulty;
   final VoidCallback onEdit;
+  final VoidCallback onArchive;
   final VoidCallback onDelete;
 
   const HabitTile({
@@ -19,8 +20,34 @@ class HabitTile extends StatelessWidget {
     required this.onToggle,
     required this.onSelectDifficulty,
     required this.onEdit,
+    required this.onArchive,
     required this.onDelete,
   });
+
+  String _formatSchedule(String type, String days, int target) {
+    if (type == 'daily') return 'Daily';
+    if (type == 'weekly_target') return '${target}x / week';
+    if (type == 'specific_days') {
+      const names = {
+        1: 'Mon',
+        2: 'Tue',
+        3: 'Wed',
+        4: 'Thu',
+        5: 'Fri',
+        6: 'Sat',
+        7: 'Sun'
+      };
+      final parsed = days
+          .split(',')
+          .map((s) => int.tryParse(s.trim()))
+          .whereType<int>()
+          .map((d) => names[d] ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+      return parsed.isEmpty ? 'Scheduled' : parsed.join(', ');
+    }
+    return 'Daily';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -128,8 +155,12 @@ class HabitTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
+                        // Category pill
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2.5),
@@ -151,8 +182,92 @@ class HabitTile extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (isDone && todayDifficulty != null) ...[
-                          const SizedBox(width: 6),
+
+                        // Schedule badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.black.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.12)
+                                  : Colors.black.withValues(alpha: 0.08),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.calendar_today_outlined,
+                                size: 10,
+                                color: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatSchedule(
+                                  habit.scheduleType,
+                                  habit.scheduleDays,
+                                  habit.weeklyTargetDays,
+                                ),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF475569),
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Reminder badge if active
+                        if (habit.isReminderEnabled &&
+                            habit.reminderTime != null &&
+                            habit.reminderTime!.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981)
+                                  .withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFF10B981)
+                                    .withValues(alpha: 0.25),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.notifications_outlined,
+                                  size: 11,
+                                  color: Color(0xFF10B981),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  habit.reminderTime!,
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF10B981),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        if (isDone && todayDifficulty != null)
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 2.5),
@@ -179,7 +294,6 @@ class HabitTile extends StatelessWidget {
                               ),
                             ),
                           ),
-                        ],
                       ],
                     ),
                   ],
@@ -199,6 +313,8 @@ class HabitTile extends StatelessWidget {
                 onSelected: (value) {
                   if (value == 'edit') {
                     onEdit();
+                  } else if (value == 'archive') {
+                    onArchive();
                   } else if (value == 'delete') {
                     onDelete();
                   }
@@ -211,6 +327,16 @@ class HabitTile extends StatelessWidget {
                         Icon(Icons.edit_outlined, size: 18),
                         SizedBox(width: 10),
                         Text('Edit'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'archive',
+                    child: Row(
+                      children: [
+                        Icon(Icons.archive_outlined, size: 18, color: Color(0xFFF59E0B)),
+                        SizedBox(width: 10),
+                        Text('Archive', style: TextStyle(color: Color(0xFFF59E0B))),
                       ],
                     ),
                   ),
