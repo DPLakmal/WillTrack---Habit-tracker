@@ -10,6 +10,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService().init();
   final database = AppDatabase();
+  await database.seedInitialDataIfEmpty();
 
   runApp(
     MultiProvider(

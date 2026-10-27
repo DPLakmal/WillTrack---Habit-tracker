@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:intl/intl.dart';
 
 part 'database.g.dart';
 
@@ -522,5 +523,110 @@ class AppDatabase extends _$AppDatabase {
       AchievementUnlocksCompanion.insert(badgeKey: badgeKey),
     );
     return true;
+  }
+
+  // Pre-seed default data if database is brand new / freshly installed
+  Future<void> seedInitialDataIfEmpty() async {
+    final existing = await (select(habits)..limit(1)).get();
+    if (existing.isNotEmpty) return;
+
+    final now = DateTime.now();
+    final today = DateFormat('yyyy-MM-dd').format(now);
+    final yesterday = DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 1)));
+    final day2 = DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 2)));
+    final day3 = DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 3)));
+    final day4 = DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 4)));
+
+    // 1. Read a book
+    final h1 = await addHabit(
+      'Read a book',
+      description: 'Read 20 pages every evening',
+      category: 'Learning',
+      symbol: 'book',
+      colorValue: 0xFF3B82F6,
+      habitType: 'quantity',
+      routine: 'evening',
+      targetValue: 20,
+      unit: 'pages',
+    );
+    await setCheckInStatusAndNote(h1, day4, status: 'completed', difficulty: 4, valueLogged: 20);
+    await setCheckInStatusAndNote(h1, day3, status: 'completed', difficulty: 5, valueLogged: 22);
+    await setCheckInStatusAndNote(h1, day2, status: 'completed', difficulty: 4, valueLogged: 25);
+    await setCheckInStatusAndNote(h1, yesterday, status: 'completed', difficulty: 3, valueLogged: 20);
+    await setCheckInStatusAndNote(h1, today, status: 'completed', difficulty: 4, valueLogged: 20);
+
+    // 2. Exercise
+    final h2 = await addHabit(
+      'Exercise',
+      description: 'Morning workout or running',
+      category: 'Fitness',
+      symbol: 'fitness',
+      colorValue: 0xFF10B981,
+      habitType: 'duration',
+      routine: 'morning',
+      targetValue: 30,
+      unit: 'mins',
+    );
+    await setCheckInStatusAndNote(h2, day3, status: 'completed', difficulty: 7, valueLogged: 30);
+    await setCheckInStatusAndNote(h2, day2, status: 'completed', difficulty: 6, valueLogged: 35);
+    await setCheckInStatusAndNote(h2, yesterday, status: 'completed', difficulty: 5, valueLogged: 30);
+    await setCheckInStatusAndNote(h2, today, status: 'completed', difficulty: 6, valueLogged: 30);
+
+    // 3. Drink water
+    final h3 = await addHabit(
+      'Drink water',
+      description: 'Stay hydrated throughout the day',
+      category: 'Health',
+      symbol: 'water',
+      colorValue: 0xFF06B6D4,
+      habitType: 'quantity',
+      routine: 'anytime',
+      targetValue: 8,
+      unit: 'glasses',
+    );
+    await setCheckInStatusAndNote(h3, day4, status: 'completed', difficulty: 2, valueLogged: 8);
+    await setCheckInStatusAndNote(h3, day3, status: 'completed', difficulty: 3, valueLogged: 8);
+    await setCheckInStatusAndNote(h3, day2, status: 'completed', difficulty: 2, valueLogged: 9);
+    await setCheckInStatusAndNote(h3, yesterday, status: 'completed', difficulty: 2, valueLogged: 8);
+    await setCheckInStatusAndNote(h3, today, status: 'completed', difficulty: 2, valueLogged: 6);
+
+    // 4. Study programming
+    final h4 = await addHabit(
+      'Study programming',
+      description: 'Flutter & Dart coding session',
+      category: 'Learning',
+      symbol: 'code',
+      colorValue: 0xFF8B5CF6,
+      habitType: 'duration',
+      routine: 'afternoon',
+      targetValue: 45,
+      unit: 'mins',
+    );
+    await setCheckInStatusAndNote(h4, day3, status: 'completed', difficulty: 6, valueLogged: 45);
+    await setCheckInStatusAndNote(h4, day2, status: 'completed', difficulty: 7, valueLogged: 50);
+    await setCheckInStatusAndNote(h4, yesterday, status: 'completed', difficulty: 5, valueLogged: 45);
+
+    // 5. Sleep before 10 PM
+    final h5 = await addHabit(
+      'Sleep before 10 PM',
+      description: 'Maintain healthy sleep schedule',
+      category: 'Health',
+      symbol: 'bed',
+      colorValue: 0xFFEC4899,
+      habitType: 'boolean',
+      routine: 'evening',
+    );
+    await setCheckInStatusAndNote(h5, day3, status: 'completed', difficulty: 4);
+    await setCheckInStatusAndNote(h5, yesterday, status: 'completed', difficulty: 3);
+
+    // Sample Goal
+    final gId = await addGoal(
+      'Read 20 Books This Year',
+      category: 'Learning',
+      description: 'Build consistent reading habit in 2026',
+    );
+    await (update(habits)..where((tbl) => tbl.id.equals(h1))).write(
+      HabitsCompanion(goalId: Value(gId)),
+    );
   }
 }
