@@ -222,9 +222,16 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
       builder: (ctx) => HabitDialog(
         title: 'Edit Habit',
         initialName: _currentHabit.name,
+        initialDescription: _currentHabit.description,
         initialCategory: _currentHabit.category,
         initialSymbol: _currentHabit.symbol,
         initialColor: _currentHabit.colorValue,
+        initialScheduleType: _currentHabit.scheduleType,
+        initialScheduleDays: _currentHabit.scheduleDays,
+        initialWeeklyTargetDays: _currentHabit.weeklyTargetDays,
+        initialStartDate: _currentHabit.startDate,
+        initialReminderTime: _currentHabit.reminderTime,
+        initialIsReminderEnabled: _currentHabit.isReminderEnabled,
         confirmLabel: 'Update',
       ),
     );
@@ -233,9 +240,16 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
       await provider.editHabit(
         _currentHabit.id,
         result.name,
+        description: result.description,
         category: result.category,
         symbol: result.symbol,
         colorValue: result.colorValue,
+        scheduleType: result.scheduleType,
+        scheduleDays: result.scheduleDays,
+        weeklyTargetDays: result.weeklyTargetDays,
+        startDate: result.startDate,
+        reminderTime: result.reminderTime,
+        isReminderEnabled: result.isReminderEnabled,
       );
 
       final updated = await provider.database.getHabitById(_currentHabit.id);

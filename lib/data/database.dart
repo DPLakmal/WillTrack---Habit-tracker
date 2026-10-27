@@ -84,7 +84,12 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(habits, habits.scheduleType);
           await m.addColumn(habits, habits.scheduleDays);
           await m.addColumn(habits, habits.weeklyTargetDays);
-          await m.addColumn(habits, habits.startDate);
+          // SQLite does not allow non-constant expressions like (strftime('%s', CURRENT_TIMESTAMP))
+          // in ALTER TABLE ADD COLUMN. Use custom SQL with constant default 0 or strftime at migration time.
+          final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+          await customStatement(
+            'ALTER TABLE habits ADD COLUMN start_date INTEGER NOT NULL DEFAULT $nowEpoch;',
+          );
           await m.addColumn(habits, habits.reminderTime);
           await m.addColumn(habits, habits.isReminderEnabled);
         }
