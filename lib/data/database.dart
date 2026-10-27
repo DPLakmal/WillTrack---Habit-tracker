@@ -27,6 +27,8 @@ class CheckIns extends Table {
   TextColumn get status =>
       text().withDefault(const Constant('completed'))();
   TextColumn get note => text().nullable()();
+  // 1-10 difficulty rating scale
+  IntColumn get difficulty => integer().nullable()();
   DateTimeColumn get completedAt =>
       dateTime().withDefault(currentDateAndTime)();
 }
@@ -36,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration {
@@ -51,6 +53,9 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(habits, habits.colorValue);
           await m.addColumn(checkIns, checkIns.status);
           await m.addColumn(checkIns, checkIns.note);
+        }
+        if (from < 3) {
+          await m.addColumn(checkIns, checkIns.difficulty);
         }
       },
     );
@@ -162,7 +167,11 @@ class AppDatabase extends _$AppDatabase {
         .getSingleOrNull();
   }
 
-  Future<void> toggleCheckIn(int habitId, String dateStr) async {
+  Future<void> toggleCheckIn(
+    int habitId,
+    String dateStr, {
+    int? difficulty = 5,
+  }) async {
     final existing = await (select(checkIns)
           ..where((tbl) =>
               tbl.habitId.equals(habitId) & tbl.date.equals(dateStr)))
@@ -176,6 +185,7 @@ class AppDatabase extends _$AppDatabase {
           habitId: habitId,
           date: dateStr,
           status: const Value('completed'),
+          difficulty: Value(difficulty),
         ),
       );
     }
@@ -186,6 +196,7 @@ class AppDatabase extends _$AppDatabase {
     String dateStr, {
     required String status,
     String? note,
+    int? difficulty,
   }) async {
     final existing = await (select(checkIns)
           ..where((tbl) =>
@@ -200,6 +211,7 @@ class AppDatabase extends _$AppDatabase {
           CheckInsCompanion(
             status: Value(status),
             note: Value(note),
+            difficulty: Value(difficulty),
           ),
         );
       }
@@ -211,6 +223,7 @@ class AppDatabase extends _$AppDatabase {
             date: dateStr,
             status: Value(status),
             note: Value(note),
+            difficulty: Value(difficulty),
           ),
         );
       }

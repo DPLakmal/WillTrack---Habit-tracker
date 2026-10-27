@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../data/database.dart';
 import '../../providers/habit_provider.dart';
+import '../widgets/difficulty_selector.dart';
+import '../widgets/habit_analytics_section.dart';
 import '../widgets/habit_dialog.dart';
 import '../widgets/habit_symbol_icon.dart';
 
@@ -50,6 +52,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     final dateStr = DateFormat('yyyy-MM-dd').format(date);
     final noteController = TextEditingController(text: checkIn?.note ?? '');
     String selectedStatus = checkIn?.status ?? 'none';
+    int selectedDifficulty = checkIn?.difficulty ?? 5;
     final habitColor = Color(_currentHabit.colorValue);
 
     showModalBottomSheet(
@@ -68,120 +71,139 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                 top: 20,
                 bottom: MediaQuery.of(context).viewInsets.bottom + 24,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        DateFormat('EEEE, MMM d, yyyy').format(date),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          DateFormat('EEEE, MMM d, yyyy').format(date),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(sheetContext),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Status',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      ChoiceChip(
-                        avatar: Icon(
-                          HabitSymbols.getIcon(_currentHabit.symbol),
-                          size: 16,
-                          color: selectedStatus == 'completed'
-                              ? Colors.white
-                              : habitColor,
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(sheetContext),
                         ),
-                        label: const Text('Completed'),
-                        selected: selectedStatus == 'completed',
-                        selectedColor: habitColor,
-                        onSelected: (val) {
-                          setSheetState(() {
-                            selectedStatus = val ? 'completed' : 'none';
-                          });
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      ChoiceChip(
-                        avatar: const Icon(Icons.remove_circle_outline, size: 16),
-                        label: const Text('Skipped'),
-                        selected: selectedStatus == 'skipped',
-                        onSelected: (val) {
-                          setSheetState(() {
-                            selectedStatus = val ? 'skipped' : 'none';
-                          });
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      ChoiceChip(
-                        label: const Text('Unmarked'),
-                        selected: selectedStatus == 'none',
-                        onSelected: (val) {
-                          setSheetState(() {
-                            selectedStatus = 'none';
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'What did you do? / Day Notes',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: noteController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: 'e.g. Swam 1000m freestyle, felt energetic!',
-                      filled: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: habitColor,
-                        shape: RoundedRectangleBorder(
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Status',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        ChoiceChip(
+                          avatar: Icon(
+                            HabitSymbols.getIcon(_currentHabit.symbol),
+                            size: 16,
+                            color: selectedStatus == 'completed'
+                                ? Colors.white
+                                : habitColor,
+                          ),
+                          label: const Text('Completed'),
+                          selected: selectedStatus == 'completed',
+                          selectedColor: habitColor,
+                          onSelected: (val) {
+                            setSheetState(() {
+                              selectedStatus = val ? 'completed' : 'none';
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          avatar: const Icon(Icons.remove_circle_outline, size: 16),
+                          label: const Text('Skipped'),
+                          selected: selectedStatus == 'skipped',
+                          onSelected: (val) {
+                            setSheetState(() {
+                              selectedStatus = val ? 'skipped' : 'none';
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('Unmarked'),
+                          selected: selectedStatus == 'none',
+                          onSelected: (val) {
+                            setSheetState(() {
+                              selectedStatus = 'none';
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Difficulty 1-10 selector when completed
+                    if (selectedStatus == 'completed') ...[
+                      DifficultySelector(
+                        selectedDifficulty: selectedDifficulty,
+                        onChanged: (val) {
+                          setSheetState(() {
+                            selectedDifficulty = val;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 18),
+                    ],
+
+                    const Text(
+                      'What did you do? / Day Notes',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: noteController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        hintText: 'e.g. Swam 1000m freestyle, felt energetic!',
+                        filled: true,
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      onPressed: () async {
-                        await provider.updateDayLog(
-                          _currentHabit.id,
-                          dateStr,
-                          status: selectedStatus,
-                          note: noteController.text.trim().isEmpty
-                              ? null
-                              : noteController.text.trim(),
-                        );
-                        if (sheetContext.mounted) {
-                          Navigator.pop(sheetContext);
-                        }
-                      },
-                      child: const Text('Save Status & Notes'),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: habitColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: () async {
+                          await provider.updateDayLog(
+                            _currentHabit.id,
+                            dateStr,
+                            status: selectedStatus,
+                            difficulty: selectedStatus == 'completed'
+                                ? selectedDifficulty
+                                : null,
+                            note: noteController.text.trim().isEmpty
+                                ? null
+                                : noteController.text.trim(),
+                          );
+                          if (sheetContext.mounted) {
+                            Navigator.pop(sheetContext);
+                          }
+                        },
+                        child: const Text('Save Status & Notes'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -247,20 +269,15 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
             for (var c in history) c.date: c,
           };
 
-          // Compute Retention / Streaks
-          final completedDates = history
-              .where((c) => c.status == 'completed')
-              .map((c) => c.date)
-              .toSet();
-
-          final totalCompletions = completedDates.length;
+          // Compute Habit Analytics
+          final stats = provider.computeHabitStats(history);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Header Card with Symbol & Retention Stats
+                // Top Header Card with Symbol & Category
                 Card(
                   elevation: 0,
                   margin: EdgeInsets.zero,
@@ -304,7 +321,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                '$totalCompletions Day${totalCompletions == 1 ? '' : 's'} Completed',
+                                '${stats.totalCompletions} Day${stats.totalCompletions == 1 ? '' : 's'} Completed',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -390,6 +407,13 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                 ),
                 const SizedBox(height: 20),
 
+                // Progress & Difficulty Analysis Section
+                HabitAnalyticsSection(
+                  habit: _currentHabit,
+                  stats: stats,
+                ),
+                const SizedBox(height: 20),
+
                 // Notes & Activity History
                 Text(
                   'RECENT ACTIVITY & NOTES',
@@ -407,7 +431,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Center(
                       child: Text(
-                        'Tap any day in the calendar to record what you did!',
+                        'Tap any day in the calendar to record notes or difficulty!',
                         style: TextStyle(
                           color: isDark ? Colors.grey[500] : Colors.grey[400],
                           fontSize: 13,
@@ -421,6 +445,10 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                       .take(10)
                       .map((c) {
                     final itemDate = DateFormat('yyyy-MM-dd').parse(c.date);
+                    final diffColor = c.difficulty != null
+                        ? DifficultySelector.getColorForDifficulty(c.difficulty!)
+                        : habitColor;
+
                     return Card(
                       elevation: 0,
                       margin: const EdgeInsets.only(bottom: 8),
@@ -435,9 +463,31 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                             size: 18,
                           ),
                         ),
-                        title: Text(
-                          DateFormat('EEEE, MMM d').format(itemDate),
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                        title: Row(
+                          children: [
+                            Text(
+                              DateFormat('EEEE, MMM d').format(itemDate),
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                            ),
+                            if (c.difficulty != null) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: diffColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${c.difficulty}/10',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: diffColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         subtitle: Text(
                           c.note ?? '',
@@ -501,6 +551,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         final isCompleted = checkIn?.status == 'completed';
         final isSkipped = checkIn?.status == 'skipped';
         final hasNote = checkIn?.note != null && checkIn!.note!.isNotEmpty;
+        final hasDifficulty = checkIn?.difficulty != null;
         final isToday = cellDateStr == todayStr;
 
         return InkWell(
@@ -542,17 +593,25 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                     ),
                   ),
 
-                // Note dot indicator
-                if (hasNote)
+                // Indicator dot for difficulty or note
+                if (hasNote || hasDifficulty)
                   Positioned(
                     bottom: 3,
                     right: 4,
                     child: Container(
-                      width: 4,
-                      height: 4,
+                      width: 5,
+                      height: 5,
                       decoration: BoxDecoration(
-                        color: isCompleted ? Colors.white : habitColor,
+                        color: isCompleted
+                            ? (checkIn?.difficulty != null
+                                ? DifficultySelector.getColorForDifficulty(
+                                    checkIn!.difficulty!)
+                                : Colors.white)
+                            : habitColor,
                         shape: BoxShape.circle,
+                        border: isCompleted
+                            ? Border.all(color: Colors.white, width: 0.5)
+                            : null,
                       ),
                     ),
                   ),

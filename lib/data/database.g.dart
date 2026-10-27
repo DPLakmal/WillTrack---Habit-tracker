@@ -517,6 +517,17 @@ class $CheckInsTable extends CheckIns with TableInfo<$CheckInsTable, CheckIn> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _difficultyMeta = const VerificationMeta(
+    'difficulty',
+  );
+  @override
+  late final GeneratedColumn<int> difficulty = GeneratedColumn<int>(
+    'difficulty',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _completedAtMeta = const VerificationMeta(
     'completedAt',
   );
@@ -536,6 +547,7 @@ class $CheckInsTable extends CheckIns with TableInfo<$CheckInsTable, CheckIn> {
     date,
     status,
     note,
+    difficulty,
     completedAt,
   ];
   @override
@@ -581,6 +593,12 @@ class $CheckInsTable extends CheckIns with TableInfo<$CheckInsTable, CheckIn> {
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
+    if (data.containsKey('difficulty')) {
+      context.handle(
+        _difficultyMeta,
+        difficulty.isAcceptableOrUnknown(data['difficulty']!, _difficultyMeta),
+      );
+    }
     if (data.containsKey('completed_at')) {
       context.handle(
         _completedAtMeta,
@@ -619,6 +637,10 @@ class $CheckInsTable extends CheckIns with TableInfo<$CheckInsTable, CheckIn> {
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
+      difficulty: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}difficulty'],
+      ),
       completedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}completed_at'],
@@ -638,6 +660,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
   final String date;
   final String status;
   final String? note;
+  final int? difficulty;
   final DateTime completedAt;
   const CheckIn({
     required this.id,
@@ -645,6 +668,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
     required this.date,
     required this.status,
     this.note,
+    this.difficulty,
     required this.completedAt,
   });
   @override
@@ -657,6 +681,9 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
+    if (!nullToAbsent || difficulty != null) {
+      map['difficulty'] = Variable<int>(difficulty);
+    }
     map['completed_at'] = Variable<DateTime>(completedAt);
     return map;
   }
@@ -668,6 +695,9 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
       date: Value(date),
       status: Value(status),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      difficulty: difficulty == null && nullToAbsent
+          ? const Value.absent()
+          : Value(difficulty),
       completedAt: Value(completedAt),
     );
   }
@@ -683,6 +713,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
       date: serializer.fromJson<String>(json['date']),
       status: serializer.fromJson<String>(json['status']),
       note: serializer.fromJson<String?>(json['note']),
+      difficulty: serializer.fromJson<int?>(json['difficulty']),
       completedAt: serializer.fromJson<DateTime>(json['completedAt']),
     );
   }
@@ -695,6 +726,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
       'date': serializer.toJson<String>(date),
       'status': serializer.toJson<String>(status),
       'note': serializer.toJson<String?>(note),
+      'difficulty': serializer.toJson<int?>(difficulty),
       'completedAt': serializer.toJson<DateTime>(completedAt),
     };
   }
@@ -705,6 +737,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
     String? date,
     String? status,
     Value<String?> note = const Value.absent(),
+    Value<int?> difficulty = const Value.absent(),
     DateTime? completedAt,
   }) => CheckIn(
     id: id ?? this.id,
@@ -712,6 +745,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
     date: date ?? this.date,
     status: status ?? this.status,
     note: note.present ? note.value : this.note,
+    difficulty: difficulty.present ? difficulty.value : this.difficulty,
     completedAt: completedAt ?? this.completedAt,
   );
   CheckIn copyWithCompanion(CheckInsCompanion data) {
@@ -721,6 +755,9 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
       date: data.date.present ? data.date.value : this.date,
       status: data.status.present ? data.status.value : this.status,
       note: data.note.present ? data.note.value : this.note,
+      difficulty: data.difficulty.present
+          ? data.difficulty.value
+          : this.difficulty,
       completedAt: data.completedAt.present
           ? data.completedAt.value
           : this.completedAt,
@@ -735,13 +772,15 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
           ..write('date: $date, ')
           ..write('status: $status, ')
           ..write('note: $note, ')
+          ..write('difficulty: $difficulty, ')
           ..write('completedAt: $completedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, habitId, date, status, note, completedAt);
+  int get hashCode =>
+      Object.hash(id, habitId, date, status, note, difficulty, completedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -751,6 +790,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
           other.date == this.date &&
           other.status == this.status &&
           other.note == this.note &&
+          other.difficulty == this.difficulty &&
           other.completedAt == this.completedAt);
 }
 
@@ -760,6 +800,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
   final Value<String> date;
   final Value<String> status;
   final Value<String?> note;
+  final Value<int?> difficulty;
   final Value<DateTime> completedAt;
   const CheckInsCompanion({
     this.id = const Value.absent(),
@@ -767,6 +808,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     this.date = const Value.absent(),
     this.status = const Value.absent(),
     this.note = const Value.absent(),
+    this.difficulty = const Value.absent(),
     this.completedAt = const Value.absent(),
   });
   CheckInsCompanion.insert({
@@ -775,6 +817,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     required String date,
     this.status = const Value.absent(),
     this.note = const Value.absent(),
+    this.difficulty = const Value.absent(),
     this.completedAt = const Value.absent(),
   }) : habitId = Value(habitId),
        date = Value(date);
@@ -784,6 +827,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     Expression<String>? date,
     Expression<String>? status,
     Expression<String>? note,
+    Expression<int>? difficulty,
     Expression<DateTime>? completedAt,
   }) {
     return RawValuesInsertable({
@@ -792,6 +836,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
       if (date != null) 'date': date,
       if (status != null) 'status': status,
       if (note != null) 'note': note,
+      if (difficulty != null) 'difficulty': difficulty,
       if (completedAt != null) 'completed_at': completedAt,
     });
   }
@@ -802,6 +847,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     Value<String>? date,
     Value<String>? status,
     Value<String?>? note,
+    Value<int?>? difficulty,
     Value<DateTime>? completedAt,
   }) {
     return CheckInsCompanion(
@@ -810,6 +856,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
       date: date ?? this.date,
       status: status ?? this.status,
       note: note ?? this.note,
+      difficulty: difficulty ?? this.difficulty,
       completedAt: completedAt ?? this.completedAt,
     );
   }
@@ -832,6 +879,9 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
+    if (difficulty.present) {
+      map['difficulty'] = Variable<int>(difficulty.value);
+    }
     if (completedAt.present) {
       map['completed_at'] = Variable<DateTime>(completedAt.value);
     }
@@ -846,6 +896,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
           ..write('date: $date, ')
           ..write('status: $status, ')
           ..write('note: $note, ')
+          ..write('difficulty: $difficulty, ')
           ..write('completedAt: $completedAt')
           ..write(')'))
         .toString();
@@ -1216,6 +1267,7 @@ typedef $$CheckInsTableCreateCompanionBuilder =
       required String date,
       Value<String> status,
       Value<String?> note,
+      Value<int?> difficulty,
       Value<DateTime> completedAt,
     });
 typedef $$CheckInsTableUpdateCompanionBuilder =
@@ -1225,6 +1277,7 @@ typedef $$CheckInsTableUpdateCompanionBuilder =
       Value<String> date,
       Value<String> status,
       Value<String?> note,
+      Value<int?> difficulty,
       Value<DateTime> completedAt,
     });
 
@@ -1276,6 +1329,11 @@ class $$CheckInsTableFilterComposer
 
   ColumnFilters<String> get note => $composableBuilder(
     column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1337,6 +1395,11 @@ class $$CheckInsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get completedAt => $composableBuilder(
     column: $table.completedAt,
     builder: (column) => ColumnOrderings(column),
@@ -1386,6 +1449,11 @@ class $$CheckInsTableAnnotationComposer
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<int> get difficulty => $composableBuilder(
+    column: $table.difficulty,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get completedAt => $composableBuilder(
     column: $table.completedAt,
@@ -1449,6 +1517,7 @@ class $$CheckInsTableTableManager
                 Value<String> date = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<int?> difficulty = const Value.absent(),
                 Value<DateTime> completedAt = const Value.absent(),
               }) => CheckInsCompanion(
                 id: id,
@@ -1456,6 +1525,7 @@ class $$CheckInsTableTableManager
                 date: date,
                 status: status,
                 note: note,
+                difficulty: difficulty,
                 completedAt: completedAt,
               ),
           createCompanionCallback:
@@ -1465,6 +1535,7 @@ class $$CheckInsTableTableManager
                 required String date,
                 Value<String> status = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<int?> difficulty = const Value.absent(),
                 Value<DateTime> completedAt = const Value.absent(),
               }) => CheckInsCompanion.insert(
                 id: id,
@@ -1472,6 +1543,7 @@ class $$CheckInsTableTableManager
                 date: date,
                 status: status,
                 note: note,
+                difficulty: difficulty,
                 completedAt: completedAt,
               ),
           withReferenceMapper: (p0) => p0

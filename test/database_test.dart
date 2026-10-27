@@ -6,7 +6,6 @@ void main() {
   late AppDatabase db;
 
   setUp(() {
-    // In-memory database for testing
     db = AppDatabase(NativeDatabase.memory());
   });
 
@@ -59,8 +58,8 @@ void main() {
     });
   });
 
-  group('Check-ins, Notes, & Calendar Retention Tracking', () {
-    test('Can complete habit and undo completion', () async {
+  group('Check-ins, 1-10 Difficulty Scale, & Retention Tracking', () {
+    test('Can complete habit with difficulty score and undo completion', () async {
       final id = await db.addHabit('Meditate');
       const today = '2026-10-27';
 
@@ -68,10 +67,13 @@ void main() {
       var completedIds = await db.getCompletedHabitIdsForDate(today);
       expect(completedIds.contains(id), isFalse);
 
-      // Check-in (complete)
-      await db.toggleCheckIn(id, today);
+      // Check-in (complete with difficulty 4)
+      await db.toggleCheckIn(id, today, difficulty: 4);
       completedIds = await db.getCompletedHabitIdsForDate(today);
       expect(completedIds.contains(id), isTrue);
+
+      final checkIn = await db.getCheckInForDate(id, today);
+      expect(checkIn?.difficulty, 4);
 
       // Toggle again (undo completion)
       await db.toggleCheckIn(id, today);
@@ -79,25 +81,27 @@ void main() {
       expect(completedIds.contains(id), isFalse);
     });
 
-    test('Can log day notes and check-in statuses (e.g. for retention)', () async {
+    test('Can log day notes and 1-10 difficulty scale', () async {
       final id = await db.addHabit('Daily Swimming', category: 'Fitness', symbol: 'pool');
       const day1 = '2026-10-25';
       const day2 = '2026-10-26';
 
-      // Record day 1 with swimming laps note
+      // Record day 1: difficulty 8/10 (Challenging)
       await db.setCheckInStatusAndNote(
         id,
         day1,
         status: 'completed',
-        note: 'Swam 1,500m freestyle',
+        difficulty: 8,
+        note: 'Swam 2,000m high-intensity intervals',
       );
 
-      // Record day 2 as skipped
+      // Record day 2: difficulty 3/10 (Light effort)
       await db.setCheckInStatusAndNote(
         id,
         day2,
-        status: 'skipped',
-        note: 'Pool maintenance',
+        status: 'completed',
+        difficulty: 3,
+        note: 'Relaxed recovery swim',
       );
 
       final history = await db.getCheckInsForHabit(id);
@@ -105,25 +109,25 @@ void main() {
 
       final d1Log = history.firstWhere((h) => h.date == day1);
       expect(d1Log.status, 'completed');
-      expect(d1Log.note, 'Swam 1,500m freestyle');
+      expect(d1Log.difficulty, 8);
+      expect(d1Log.note, 'Swam 2,000m high-intensity intervals');
 
       final d2Log = history.firstWhere((h) => h.date == day2);
-      expect(d2Log.status, 'skipped');
-      expect(d2Log.note, 'Pool maintenance');
+      expect(d2Log.status, 'completed');
+      expect(d2Log.difficulty, 3);
+      expect(d2Log.note, 'Relaxed recovery swim');
     });
 
-    test('Deleting habit cascades and deletes all history logs', () async {
+    test('Deleting habit cascades and deletes all check-ins', () async {
       final id = await db.addHabit('Study programming');
       const today = '2026-10-27';
 
-      await db.toggleCheckIn(id, today);
+      await db.toggleCheckIn(id, today, difficulty: 7);
       var completedIds = await db.getCompletedHabitIdsForDate(today);
       expect(completedIds.length, 1);
 
-      // Delete habit
       await db.deleteHabit(id);
 
-      // Check-ins for this habit should no longer exist
       completedIds = await db.getCompletedHabitIdsForDate(today);
       expect(completedIds.isEmpty, isTrue);
     });

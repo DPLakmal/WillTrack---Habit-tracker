@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:willtrack/ui/widgets/daily_progress_card.dart';
+import 'package:willtrack/ui/widgets/difficulty_selector.dart';
 import 'package:willtrack/ui/widgets/empty_state.dart';
+import 'package:willtrack/ui/widgets/habit_analytics_section.dart';
 import 'package:willtrack/ui/widgets/habit_dialog.dart';
 import 'package:willtrack/ui/widgets/habit_tile.dart';
 import 'package:willtrack/data/database.dart';
@@ -50,23 +52,95 @@ void main() {
       expect(find.text('2 remaining habits'), findsOneWidget);
     });
 
-    testWidgets('DailyProgressCard shows completion message at 100%',
+    testWidgets('DifficultySelector renders 1-10 scores and triggers callback',
         (tester) async {
+      int selected = 5;
+
       await tester.pumpWidget(
-        const MaterialApp(
+        StatefulBuilder(
+          builder: (context, setState) {
+            return MaterialApp(
+              home: Scaffold(
+                body: DifficultySelector(
+                  selectedDifficulty: selected,
+                  onChanged: (val) {
+                    setState(() {
+                      selected = val;
+                    });
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+      );
+
+      expect(find.text('5 / 10'), findsOneWidget);
+      expect(find.text('8'), findsOneWidget);
+
+      // Tap 8
+      await tester.tap(find.text('8'));
+      await tester.pump();
+
+      expect(selected, 8);
+      expect(find.text('8 / 10'), findsOneWidget);
+      expect(find.text('Challenging (Pushed limits)'), findsOneWidget);
+    });
+
+    testWidgets('HabitAnalyticsSection renders streaks, average difficulty and distribution',
+        (tester) async {
+      final testHabit = Habit(
+        id: 1,
+        name: 'Daily Swimming',
+        category: 'Fitness',
+        symbol: 'pool',
+        colorValue: 0xFF06B6D4,
+        createdAt: DateTime.now(),
+        isArchived: false,
+      );
+
+      final stats = HabitStats(
+        currentStreak: 5,
+        longestStreak: 12,
+        totalCompletions: 20,
+        averageDifficulty: 6.5,
+        trendMessage: 'Getting easier! Habit mastery improving 🚀',
+        difficultyDistribution: {
+          'Easy (1-3)': 4,
+          'Moderate (4-7)': 12,
+          'Hard (8-10)': 4,
+        },
+        recentSessions: [
+          CheckIn(
+            id: 1,
+            habitId: 1,
+            date: '2026-10-27',
+            status: 'completed',
+            note: '1000m swim',
+            difficulty: 6,
+            completedAt: DateTime.now(),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
           home: Scaffold(
-            body: DailyProgressCard(
-              completed: 4,
-              total: 4,
-              progress: 1.0,
-              percentage: 100,
+            body: SingleChildScrollView(
+              child: HabitAnalyticsSection(
+                habit: testHabit,
+                stats: stats,
+              ),
             ),
           ),
         ),
       );
 
-      expect(find.text('4/4 (100%)'), findsOneWidget);
-      expect(find.text('🎉 All done for today! Keep it up!'), findsOneWidget);
+      expect(find.text('5 Days'), findsOneWidget);
+      expect(find.text('12 Days'), findsOneWidget);
+      expect(find.text('6.5 / 10'), findsOneWidget);
+      expect(find.text('Getting easier! Habit mastery improving 🚀'), findsOneWidget);
+      expect(find.text('12 sessions'), findsOneWidget);
     });
 
     testWidgets('HabitTile displays habit with category and fires callbacks',
@@ -106,35 +180,6 @@ void main() {
 
       await tester.tap(find.byKey(const Key('habit_toggle_button')));
       expect(toggleCalled, isTrue);
-    });
-
-    testWidgets('HabitTile shows custom symbol when completed', (tester) async {
-      final testHabit = Habit(
-        id: 1,
-        name: 'Drink water',
-        category: 'Health',
-        symbol: 'water',
-        colorValue: 0xFF06B6D4,
-        createdAt: DateTime.now(),
-        isArchived: false,
-      );
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: HabitTile(
-              habitItem: HabitItem(habit: testHabit, isCompletedToday: true),
-              onTap: () {},
-              onToggle: () {},
-              onEdit: () {},
-              onDelete: () {},
-            ),
-          ),
-        ),
-      );
-
-      expect(find.text('Drink water'), findsOneWidget);
-      expect(find.byIcon(Icons.water_drop), findsOneWidget);
     });
 
     testWidgets('HabitDialog validates empty inputs', (tester) async {

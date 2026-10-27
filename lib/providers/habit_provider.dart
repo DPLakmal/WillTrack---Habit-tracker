@@ -13,6 +13,26 @@ class HabitItem {
   });
 }
 
+class HabitStats {
+  final int currentStreak;
+  final int longestStreak;
+  final int totalCompletions;
+  final double averageDifficulty;
+  final String trendMessage;
+  final Map<String, int> difficultyDistribution; // 'Easy', 'Moderate', 'Hard'
+  final List<CheckIn> recentSessions;
+
+  HabitStats({
+    required this.currentStreak,
+    required this.longestStreak,
+    required this.totalCompletions,
+    required this.averageDifficulty,
+    required this.trendMessage,
+    required this.difficultyDistribution,
+    required this.recentSessions,
+  });
+}
+
 class HabitProvider extends ChangeNotifier {
   final AppDatabase database;
   ThemeMode _themeMode = ThemeMode.system;
@@ -147,9 +167,28 @@ class HabitProvider extends ChangeNotifier {
     await refresh();
   }
 
-  Future<void> toggleHabitCompletion(int habitId) async {
-    await database.toggleCheckIn(habitId, todayString);
+  Future<void> toggleHabitCompletion(int habitId, {int? difficulty = 5}) async {
+    await database.toggleCheckIn(habitId, todayString, difficulty: difficulty);
     await refresh();
+  }
+
+  Future<void> completeHabitWithDetails(
+    int habitId, {
+    required int difficulty,
+    String? note,
+  }) async {
+    await database.setCheckInStatusAndNote(
+      habitId,
+      todayString,
+      status: 'completed',
+      difficulty: difficulty,
+      note: note,
+    );
+    await refresh();
+  }
+
+  Future<CheckIn?> getTodayCheckIn(int habitId) {
+    return database.getCheckInForDate(habitId, todayString);
   }
 
   Stream<List<CheckIn>> watchHabitHistory(int habitId) {
@@ -161,14 +200,138 @@ class HabitProvider extends ChangeNotifier {
     String dateStr, {
     required String status,
     String? note,
+    int? difficulty,
   }) async {
     await database.setCheckInStatusAndNote(
       habitId,
       dateStr,
       status: status,
       note: note,
+      difficulty: difficulty,
     );
     await refresh();
+  }
+
+  /// Analytics & Progress Computation
+  HabitStats computeHabitStats(List<CheckIn> history) {
+    final completed = history
+        .where((c) => c.status == 'completed')
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date)); // Newest first
+
+    if (completed.isEmpty) {
+      return HabitStats(
+        currentStreak: 0,
+        longestStreak: 0,
+        totalCompletions: 0,
+        averageDifficulty: 0.0,
+        trendMessage: 'No completed sessions logged yet.',
+        difficultyDistribution: {'Easy': 0, 'Moderate': 0, 'Hard': 0},
+        recentSessions: [],
+      );
+    }
+
+    final total = completed.length;
+
+    // Difficulty metrics
+    final ratedSessions = completed.where((c) => c.difficulty != null).toList();
+    double avgDiff = 0.0;
+    int easyCount = 0;
+    int modCount = 0;
+    int hardCount = 0;
+
+    if (ratedSessions.isNotEmpty) {
+      final sum = ratedSessions.fold<int>(0, (acc, c) => acc + (c.difficulty ?? 5));
+      avgDiff = sum / ratedSessions.length;
+
+      for (var s in ratedSessions) {
+        final d = s.difficulty ?? 5;
+        if (d <= 3) {
+          easyCount++;
+        } else if (d <= 7) {
+          modCount++;
+        } else {
+          hardCount++;
+        }
+      }
+    }
+
+    // Trend calculation: recent vs older
+    String trend = 'Baseline establishing';
+    if (ratedSessions.length >= 4) {
+      final recent = ratedSessions.take(3).map((e) => e.difficulty ?? 5).reduce((a, b) => a + b) / 3;
+      final older = ratedSessions.skip(3).take(3).map((e) => e.difficulty ?? 5).reduce((a, b) => a + b) / 3;
+
+      if (recent < older - 0.5) {
+        trend = 'Getting easier! Habit mastery improving 🚀';
+      } else if (recent > older + 0.5) {
+        trend = 'Perceived exertion higher recently 💪';
+      } else {
+        trend = 'Consistent effort and steady retention 🎯';
+      }
+    }
+
+    // Streak Calculation
+    final dateSet = completed.map((c) => c.date).toSet();
+    final now = DateTime.now();
+    final todayFormatted = DateFormat('yyyy-MM-dd').format(now);
+    final yesterdayFormatted =
+        DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 1)));
+
+    int currentStreak = 0;
+    DateTime checkDate = dateSet.contains(todayFormatted)
+        ? now
+        : dateSet.contains(yesterdayFormatted)
+            ? now.subtract(const Duration(days: 1))
+            : now;
+
+    if (dateSet.contains(todayFormatted) || dateSet.contains(yesterdayFormatted)) {
+      while (true) {
+        final dStr = DateFormat('yyyy-MM-dd').format(checkDate);
+        if (dateSet.contains(dStr)) {
+          currentStreak++;
+          checkDate = checkDate.subtract(const Duration(days: 1));
+        } else {
+          break;
+        }
+      }
+    }
+
+    // Longest streak
+    final sortedAsc = completed.map((c) => DateFormat('yyyy-MM-dd').parse(c.date)).toList()
+      ..sort();
+    int longest = 0;
+    int tempStreak = 0;
+    DateTime? prev;
+
+    for (final d in sortedAsc) {
+      if (prev == null) {
+        tempStreak = 1;
+      } else {
+        final diff = d.difference(prev).inDays;
+        if (diff == 1) {
+          tempStreak++;
+        } else if (diff > 1) {
+          tempStreak = 1;
+        }
+      }
+      if (tempStreak > longest) longest = tempStreak;
+      prev = d;
+    }
+
+    return HabitStats(
+      currentStreak: currentStreak,
+      longestStreak: longest,
+      totalCompletions: total,
+      averageDifficulty: avgDiff,
+      trendMessage: trend,
+      difficultyDistribution: {
+        'Easy (1-3)': easyCount,
+        'Moderate (4-7)': modCount,
+        'Hard (8-10)': hardCount,
+      },
+      recentSessions: completed.take(14).toList(),
+    );
   }
 
   @override
