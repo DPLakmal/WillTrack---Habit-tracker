@@ -69,29 +69,40 @@ class AppDatabase extends _$AppDatabase {
         await customStatement('PRAGMA foreign_keys = ON');
       },
       onUpgrade: (m, from, to) async {
+        // Safe idempotent column addition helper to prevent crashes if partial migration occurred
+        Future<void> addColumnIfNotExists(
+          String table,
+          String column,
+          String definition,
+        ) async {
+          final res = await customSelect("PRAGMA table_info($table);").get();
+          final exists = res.any((r) => r.data['name'] == column);
+          if (!exists) {
+            await customStatement(
+              'ALTER TABLE "$table" ADD COLUMN "$column" $definition;',
+            );
+          }
+        }
+
         if (from < 2) {
-          await m.addColumn(habits, habits.category);
-          await m.addColumn(habits, habits.symbol);
-          await m.addColumn(habits, habits.colorValue);
-          await m.addColumn(checkIns, checkIns.status);
-          await m.addColumn(checkIns, checkIns.note);
+          await addColumnIfNotExists('habits', 'category', "TEXT NOT NULL DEFAULT 'General'");
+          await addColumnIfNotExists('habits', 'symbol', "TEXT NOT NULL DEFAULT 'check'");
+          await addColumnIfNotExists('habits', 'color_value', "INTEGER NOT NULL DEFAULT 4279351681");
+          await addColumnIfNotExists('check_ins', 'status', "TEXT NOT NULL DEFAULT 'completed'");
+          await addColumnIfNotExists('check_ins', 'note', "TEXT NULL");
         }
         if (from < 3) {
-          await m.addColumn(checkIns, checkIns.difficulty);
+          await addColumnIfNotExists('check_ins', 'difficulty', "INTEGER NULL");
         }
         if (from < 4) {
-          await m.addColumn(habits, habits.description);
-          await m.addColumn(habits, habits.scheduleType);
-          await m.addColumn(habits, habits.scheduleDays);
-          await m.addColumn(habits, habits.weeklyTargetDays);
-          // SQLite does not allow non-constant expressions like (strftime('%s', CURRENT_TIMESTAMP))
-          // in ALTER TABLE ADD COLUMN. Use custom SQL with constant default 0 or strftime at migration time.
           final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-          await customStatement(
-            'ALTER TABLE habits ADD COLUMN start_date INTEGER NOT NULL DEFAULT $nowEpoch;',
-          );
-          await m.addColumn(habits, habits.reminderTime);
-          await m.addColumn(habits, habits.isReminderEnabled);
+          await addColumnIfNotExists('habits', 'description', "TEXT NULL");
+          await addColumnIfNotExists('habits', 'schedule_type', "TEXT NOT NULL DEFAULT 'daily'");
+          await addColumnIfNotExists('habits', 'schedule_days', "TEXT NOT NULL DEFAULT ''");
+          await addColumnIfNotExists('habits', 'weekly_target_days', "INTEGER NOT NULL DEFAULT 7");
+          await addColumnIfNotExists('habits', 'start_date', "INTEGER NOT NULL DEFAULT $nowEpoch");
+          await addColumnIfNotExists('habits', 'reminder_time', "TEXT NULL");
+          await addColumnIfNotExists('habits', 'is_reminder_enabled', "INTEGER NOT NULL DEFAULT 0");
         }
       },
     );
