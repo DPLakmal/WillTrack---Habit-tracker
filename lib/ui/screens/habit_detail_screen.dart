@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../data/database.dart';
 import '../../providers/habit_provider.dart';
+import '../widgets/apple_glass_card.dart';
 import '../widgets/difficulty_selector.dart';
 import '../widgets/habit_analytics_section.dart';
 import '../widgets/habit_dialog.dart';
@@ -58,18 +59,17 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            return Padding(
+            return AppleGlassCard(
+              borderRadius: 32,
               padding: EdgeInsets.only(
                 left: 20,
                 right: 20,
-                top: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                top: 22,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 28,
               ),
               child: SingleChildScrollView(
                 child: Column(
@@ -82,8 +82,9 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                         Text(
                           DateFormat('EEEE, MMM d, yyyy').format(date),
                           style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                             fontSize: 18,
+                            letterSpacing: -0.3,
                           ),
                         ),
                         IconButton(
@@ -95,7 +96,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                     const SizedBox(height: 16),
                     const Text(
                       'Status',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -142,7 +143,6 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                     ),
                     const SizedBox(height: 18),
 
-                    // Difficulty 1-10 selector when completed
                     if (selectedStatus == 'completed') ...[
                       DifficultySelector(
                         selectedDifficulty: selectedDifficulty,
@@ -157,7 +157,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
 
                     const Text(
                       'What did you do? / Day Notes',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -166,8 +166,9 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                       decoration: InputDecoration(
                         hintText: 'e.g. Swam 1000m freestyle, felt energetic!',
                         filled: true,
+                        fillColor: Colors.black.withValues(alpha: 0.04),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                           borderSide: BorderSide.none,
                         ),
                       ),
@@ -179,7 +180,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                         style: FilledButton.styleFrom(
                           backgroundColor: habitColor,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
@@ -199,7 +200,10 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                             Navigator.pop(sheetContext);
                           }
                         },
-                        child: const Text('Save Status & Notes'),
+                        child: const Text(
+                          'Save Status & Notes',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   ],
@@ -251,6 +255,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     final symbolIcon = HabitSymbols.getIcon(_currentHabit.symbol);
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(_currentHabit.name),
         actions: [
@@ -261,255 +266,273 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<List<CheckIn>>(
-        stream: provider.watchHabitHistory(_currentHabit.id),
-        builder: (context, snapshot) {
-          final history = snapshot.data ?? [];
-          final Map<String, CheckIn> checkInMap = {
-            for (var c in history) c.date: c,
-          };
+      body: AppleGlassBackground(
+        child: SafeArea(
+          child: StreamBuilder<List<CheckIn>>(
+            stream: provider.watchHabitHistory(_currentHabit.id),
+            builder: (context, snapshot) {
+              final history = snapshot.data ?? [];
+              final Map<String, CheckIn> checkInMap = {
+                for (var c in history) c.date: c,
+              };
 
-          // Compute Habit Analytics
-          final stats = provider.computeHabitStats(history);
+              final stats = provider.computeHabitStats(history);
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top Header Card with Symbol & Category
-                Card(
-                  elevation: 0,
-                  margin: EdgeInsets.zero,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: habitColor.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(symbolIcon, color: habitColor, size: 28),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: habitColor.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      _currentHabit.category,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: habitColor,
-                                      ),
-                                    ),
-                                  ),
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Header Glass Card
+                    AppleGlassCard(
+                      borderRadius: 24,
+                      padding: const EdgeInsets.all(18),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 58,
+                            height: 58,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  habitColor.withValues(alpha: 0.25),
+                                  habitColor.withValues(alpha: 0.12),
                                 ],
                               ),
-                              const SizedBox(height: 6),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: habitColor.withValues(alpha: 0.35),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Icon(symbolIcon, color: habitColor, size: 28),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: habitColor.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        _currentHabit.category,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: habitColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '${stats.totalCompletions} Day${stats.totalCompletions == 1 ? '' : 's'} Completed',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Calendar Glass Card
+                    AppleGlassCard(
+                      borderRadius: 24,
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.chevron_left),
+                                onPressed: _previousMonth,
+                              ),
                               Text(
-                                '${stats.totalCompletions} Day${stats.totalCompletions == 1 ? '' : 's'} Completed',
+                                DateFormat('MMMM yyyy').format(_displayedMonth),
                                 style: const TextStyle(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.2,
                                 ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.chevron_right),
+                                onPressed: _nextMonth,
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                          const SizedBox(height: 12),
 
-                // Calendar Card
-                Card(
-                  elevation: 0,
-                  margin: EdgeInsets.zero,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        // Month Navigation Header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.chevron_left),
-                              onPressed: _previousMonth,
-                            ),
-                            Text(
-                              DateFormat('MMMM yyyy').format(_displayedMonth),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.chevron_right),
-                              onPressed: _nextMonth,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Weekday labels (Sun - Sat)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
-                              .map(
-                                (day) => SizedBox(
-                                  width: 36,
-                                  child: Center(
-                                    child: Text(
-                                      day,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
-                                        color: isDark
-                                            ? Colors.grey[400]
-                                            : Colors.grey[600],
+                          // Weekday labels
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+                                .map(
+                                  (day) => SizedBox(
+                                    width: 36,
+                                    child: Center(
+                                      child: Text(
+                                        day,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                          color: isDark
+                                              ? Colors.grey[400]
+                                              : Colors.grey[600],
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                        const SizedBox(height: 8),
+                                )
+                                .toList(),
+                          ),
+                          const SizedBox(height: 10),
 
-                        // Month Grid
-                        _buildMonthGrid(
-                          context,
-                          _displayedMonth,
-                          checkInMap,
-                          habitColor,
-                          symbolIcon,
-                          provider,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Progress & Difficulty Analysis Section
-                HabitAnalyticsSection(
-                  habit: _currentHabit,
-                  stats: stats,
-                ),
-                const SizedBox(height: 20),
-
-                // Notes & Activity History
-                Text(
-                  'RECENT ACTIVITY & NOTES',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: isDark ? Colors.grey[400] : Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                if (history.where((c) => c.note != null && c.note!.isNotEmpty).isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Center(
-                      child: Text(
-                        'Tap any day in the calendar to record notes or difficulty!',
-                        style: TextStyle(
-                          color: isDark ? Colors.grey[500] : Colors.grey[400],
-                          fontSize: 13,
-                        ),
+                          _buildMonthGrid(
+                            context,
+                            _displayedMonth,
+                            checkInMap,
+                            habitColor,
+                            symbolIcon,
+                            provider,
+                          ),
+                        ],
                       ),
                     ),
-                  )
-                else
-                  ...history
-                      .where((c) => c.note != null && c.note!.isNotEmpty)
-                      .take(10)
-                      .map((c) {
-                    final itemDate = DateFormat('yyyy-MM-dd').parse(c.date);
-                    final diffColor = c.difficulty != null
-                        ? DifficultySelector.getColorForDifficulty(c.difficulty!)
-                        : habitColor;
+                    const SizedBox(height: 20),
 
-                    return Card(
-                      elevation: 0,
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: c.status == 'completed'
-                              ? habitColor.withValues(alpha: 0.15)
-                              : Colors.orange.withValues(alpha: 0.15),
-                          child: Icon(
-                            c.status == 'completed' ? symbolIcon : Icons.skip_next,
-                            color: c.status == 'completed' ? habitColor : Colors.orange,
-                            size: 18,
+                    // Progress & Difficulty Analysis Section
+                    HabitAnalyticsSection(
+                      habit: _currentHabit,
+                      stats: stats,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Activity & Notes
+                    Text(
+                      'RECENT ACTIVITY & NOTES',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    if (history.where((c) => c.note != null && c.note!.isNotEmpty).isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: Text(
+                            'Tap any day in the calendar to record notes or difficulty!',
+                            style: TextStyle(
+                              color: isDark ? Colors.grey[500] : Colors.grey[400],
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                        title: Row(
-                          children: [
-                            Text(
-                              DateFormat('EEEE, MMM d').format(itemDate),
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                            ),
-                            if (c.difficulty != null) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: diffColor.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
+                      )
+                    else
+                      ...history
+                          .where((c) => c.note != null && c.note!.isNotEmpty)
+                          .take(10)
+                          .map((c) {
+                        final itemDate = DateFormat('yyyy-MM-dd').parse(c.date);
+                        final diffColor = c.difficulty != null
+                            ? DifficultySelector.getColorForDifficulty(c.difficulty!)
+                            : habitColor;
+
+                        return AppleGlassCard(
+                          borderRadius: 18,
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: c.status == 'completed'
+                                    ? habitColor.withValues(alpha: 0.15)
+                                    : Colors.orange.withValues(alpha: 0.15),
+                                child: Icon(
+                                  c.status == 'completed' ? symbolIcon : Icons.skip_next,
+                                  color: c.status == 'completed' ? habitColor : Colors.orange,
+                                  size: 18,
                                 ),
-                                child: Text(
-                                  '${c.difficulty}/10',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: diffColor,
-                                  ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          DateFormat('EEEE, MMM d').format(itemDate),
+                                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                                        ),
+                                        if (c.difficulty != null) ...[
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: diffColor.withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              '${c.difficulty}/10',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: diffColor,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      c.note ?? '',
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit_note, size: 22),
+                                onPressed: () => _showDayLogSheet(
+                                  context,
+                                  itemDate,
+                                  c,
+                                  provider,
                                 ),
                               ),
                             ],
-                          ],
-                        ),
-                        subtitle: Text(
-                          c.note ?? '',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.edit_note, size: 20),
-                          onPressed: () => _showDayLogSheet(
-                            context,
-                            itemDate,
-                            c,
-                            provider,
                           ),
-                        ),
-                      ),
-                    );
-                  }),
-                const SizedBox(height: 40),
-              ],
-            ),
-          );
-        },
+                        );
+                      }),
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -535,8 +558,8 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
         childAspectRatio: 1.0,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
+        mainAxisSpacing: 5,
+        crossAxisSpacing: 5,
       ),
       itemCount: totalCells,
       itemBuilder: (context, index) {
@@ -555,7 +578,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         final isToday = cellDateStr == todayStr;
 
         return InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           onTap: () => _showDayLogSheet(context, cellDate, checkIn, provider),
           child: Container(
             decoration: BoxDecoration(
@@ -563,14 +586,27 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                   ? habitColor
                   : isSkipped
                       ? (isDark ? Colors.grey[800] : Colors.grey[200])
-                      : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
+                      : (isDark
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.black.withValues(alpha: 0.03)),
+              borderRadius: BorderRadius.circular(10),
               border: isToday
                   ? Border.all(color: habitColor, width: 2)
                   : Border.all(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : Colors.white.withValues(alpha: 0.7),
                       width: 1,
                     ),
+              boxShadow: isCompleted
+                  ? [
+                      BoxShadow(
+                        color: habitColor.withValues(alpha: 0.4),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
             child: Stack(
               alignment: Alignment.center,
@@ -586,14 +622,13 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                     '$dayNumber',
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isToday ? FontWeight.bold : FontWeight.w600,
                       color: isSkipped
                           ? Colors.grey
                           : (isDark ? Colors.grey[300] : Colors.grey[800]),
                     ),
                   ),
 
-                // Indicator dot for difficulty or note
                 if (hasNote || hasDifficulty)
                   Positioned(
                     bottom: 3,

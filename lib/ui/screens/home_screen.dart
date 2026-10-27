@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/database.dart';
 import '../../providers/habit_provider.dart';
+import '../widgets/apple_glass_card.dart';
 import '../widgets/daily_progress_card.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/habit_dialog.dart';
@@ -63,7 +64,7 @@ class HomeScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Delete Habit'),
         content: Text('Are you sure you want to delete "$habitName"?'),
         actions: [
@@ -98,159 +99,238 @@ class HomeScreen extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text('My Habits'),
         actions: [
-          IconButton(
-            tooltip: 'Toggle Theme',
-            icon: Icon(
-              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+          // Apple Glass Theme Toggle Pill
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.15)
+                      : Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+              child: IconButton(
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
+                tooltip: 'Toggle Theme',
+                icon: Icon(
+                  isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                  size: 20,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+                onPressed: () => provider.toggleTheme(),
+              ),
             ),
-            onPressed: () => provider.toggleTheme(),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: TextButton.icon(
+            padding: const EdgeInsets.only(right: 14),
+            child: FilledButton.icon(
               onPressed: () => _showAddHabitDialog(context),
-              icon: const Icon(Icons.add, size: 18),
+              icon: const Icon(Icons.add, size: 16),
               label: const Text('Add'),
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.primary,
-                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
               ),
             ),
           ),
         ],
       ),
-      body: SafeArea(
-        child: allHabits.isEmpty
-            ? EmptyStateWidget(onAddHabit: () => _showAddHabitDialog(context))
-            : CustomScrollView(
-                slivers: [
-                  // Daily Progress Card
-                  SliverToBoxAdapter(
-                    child: DailyProgressCard(
-                      completed: provider.completedCount,
-                      total: provider.totalCount,
-                      progress: provider.progressPercentage,
-                      percentage: provider.progressPercentInt,
-                    ),
-                  ),
-
-                  // Category Filter Chips
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: SizedBox(
-                        height: 38,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: categories.length,
-                          separatorBuilder: (_, _) => const SizedBox(width: 8),
-                          itemBuilder: (context, index) {
-                            final cat = categories[index];
-                            final isSelected = selectedCategory.toLowerCase() == cat.toLowerCase();
-                            return ChoiceChip(
-                              label: Text(cat),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                if (selected) {
-                                  provider.setSelectedCategory(cat);
-                                }
-                              },
-                            );
-                          },
-                        ),
+      body: AppleGlassBackground(
+        child: SafeArea(
+          child: allHabits.isEmpty
+              ? EmptyStateWidget(onAddHabit: () => _showAddHabitDialog(context))
+              : CustomScrollView(
+                  slivers: [
+                    // Daily Progress Glass Card
+                    SliverToBoxAdapter(
+                      child: DailyProgressCard(
+                        completed: provider.completedCount,
+                        total: provider.totalCount,
+                        progress: provider.progressPercentage,
+                        percentage: provider.progressPercentInt,
                       ),
                     ),
-                  ),
 
-                  // Section Header: "TODAY'S HABITS"
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            selectedCategory == 'All'
-                                ? "TODAY'S HABITS"
-                                : "${selectedCategory.toUpperCase()} HABITS",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.2,
-                              color: isDark ? Colors.grey[400] : Colors.grey[600],
-                            ),
-                          ),
-                          Text(
-                            '${habitItems.length} habit${habitItems.length == 1 ? '' : 's'}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? Colors.grey[500] : Colors.grey[400],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Habit items list
-                  if (habitItems.isEmpty)
+                    // iOS Glass Filter Chips
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Center(
-                          child: Text(
-                            'No habits in "$selectedCategory" category',
-                            style: TextStyle(
-                              color: isDark ? Colors.grey[400] : Colors.grey[600],
-                            ),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: SizedBox(
+                          height: 38,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: categories.length,
+                            separatorBuilder: (_, _) => const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              final cat = categories[index];
+                              final isSelected = selectedCategory.toLowerCase() == cat.toLowerCase();
+                              return ChoiceChip(
+                                label: Text(cat),
+                                selected: isSelected,
+                                selectedColor: const Color(0xFF10B981),
+                                labelStyle: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : (isDark
+                                          ? const Color(0xFFCBD5E1)
+                                          : const Color(0xFF475569)),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                side: BorderSide(
+                                  color: isSelected
+                                      ? Colors.transparent
+                                      : (isDark
+                                          ? Colors.white.withValues(alpha: 0.12)
+                                          : Colors.white.withValues(alpha: 0.8)),
+                                ),
+                                backgroundColor: isDark
+                                    ? Colors.white.withValues(alpha: 0.06)
+                                    : Colors.white.withValues(alpha: 0.5),
+                                onSelected: (selected) {
+                                  if (selected) {
+                                    provider.setSelectedCategory(cat);
+                                  }
+                                },
+                              );
+                            },
                           ),
                         ),
                       ),
-                    )
-                  else
-                    SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final item = habitItems[index];
-                          return HabitTile(
-                            habitItem: item,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      HabitDetailScreen(habit: item.habit),
+                    ),
+
+                    // Section Header: "TODAY'S HABITS"
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              selectedCategory == 'All'
+                                ? "TODAY'S HABITS"
+                                : "${selectedCategory.toUpperCase()} HABITS",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
+                                color: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : Colors.black.withValues(alpha: 0.04),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '${habitItems.length} habit${habitItems.length == 1 ? '' : 's'}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
                                 ),
-                              );
-                            },
-                            onToggle: () =>
-                                provider.toggleHabitCompletion(item.habit.id),
-                            onSelectDifficulty: (score) =>
-                                provider.markHabitDifficulty(item.habit.id, score),
-                            onEdit: () => _showEditHabitDialog(
-                                context, item.habit),
-                            onDelete: () => _confirmDeleteHabit(
-                                context, item.habit.id, item.habit.name),
-                          );
-                        },
-                        childCount: habitItems.length,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: 80),
-                  ),
-                ],
-              ),
+                    // Habit items list
+                    if (habitItems.isEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Center(
+                            child: AppleGlassCard(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                              borderRadius: 16,
+                              child: Text(
+                                'No habits in "$selectedCategory" category',
+                                style: TextStyle(
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final item = habitItems[index];
+                            return HabitTile(
+                              habitItem: item,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        HabitDetailScreen(habit: item.habit),
+                                  ),
+                                );
+                              },
+                              onToggle: () =>
+                                  provider.toggleHabitCompletion(item.habit.id),
+                              onSelectDifficulty: (score) =>
+                                  provider.markHabitDifficulty(item.habit.id, score),
+                              onEdit: () => _showEditHabitDialog(
+                                  context, item.habit),
+                              onDelete: () => _confirmDeleteHabit(
+                                  context, item.habit.id, item.habit.name),
+                            );
+                          },
+                          childCount: habitItems.length,
+                        ),
+                      ),
+
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 80),
+                    ),
+                  ],
+                ),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color(0xFF10B981),
+        foregroundColor: Colors.white,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
         onPressed: () => _showAddHabitDialog(context),
         icon: const Icon(Icons.add),
-        label: const Text('New Habit'),
+        label: const Text(
+          'New Habit',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }

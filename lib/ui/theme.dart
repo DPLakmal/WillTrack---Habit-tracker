@@ -1,55 +1,47 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Brand colors
+  // Apple Brand Highlights
   static const Color primaryGreen = Color(0xFF10B981);
-  static const Color primaryGreenDark = Color(0xFF059669);
-  static const Color surfaceLight = Color(0xFFF9FAFB);
-  static const Color cardLight = Colors.white;
-  static const Color textDark = Color(0xFF111827);
-  static const Color textMutedLight = Color(0xFF6B7280);
+  static const Color primaryGreenLight = Color(0xFF34D399);
 
-  static const Color surfaceDark = Color(0xFF0F172A);
-  static const Color cardDark = Color(0xFF1E293B);
+  // iOS Typography & System Colors
+  static const Color textDark = Color(0xFF0F172A);
   static const Color textLight = Color(0xFFF8FAFC);
-  static const Color textMutedDark = Color(0xFF94A3B8);
+  static const Color textSecondaryLight = Color(0xFF64748B);
+  static const Color textSecondaryDark = Color(0xFF94A3B8);
 
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: surfaceLight,
+      scaffoldBackgroundColor: Colors.transparent,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryGreen,
         brightness: Brightness.light,
-        surface: surfaceLight,
-        primary: primaryGreenDark,
+        surface: Colors.transparent,
+        primary: const Color(0xFF059669),
       ),
-      cardTheme: CardThemeData(
-        color: cardLight,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
-        ),
-      ),
+      fontFamily: '-apple-system',
       appBarTheme: const AppBarTheme(
-        backgroundColor: surfaceLight,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
+        centerTitle: false,
         iconTheme: IconThemeData(color: textDark),
         titleTextStyle: TextStyle(
           color: textDark,
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.5,
+          fontSize: 26,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.6,
         ),
       ),
       textTheme: const TextTheme(
         titleLarge: TextStyle(
           color: textDark,
-          fontSize: 20,
+          fontSize: 22,
           fontWeight: FontWeight.w700,
+          letterSpacing: -0.4,
         ),
         bodyLarge: TextStyle(
           color: textDark,
@@ -57,7 +49,7 @@ class AppTheme {
           fontWeight: FontWeight.w500,
         ),
         bodyMedium: TextStyle(
-          color: textMutedLight,
+          color: textSecondaryLight,
           fontSize: 14,
         ),
       ),
@@ -68,38 +60,33 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: surfaceDark,
+      scaffoldBackgroundColor: Colors.transparent,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryGreen,
         brightness: Brightness.dark,
-        surface: surfaceDark,
+        surface: Colors.transparent,
         primary: primaryGreen,
       ),
-      cardTheme: CardThemeData(
-        color: cardDark,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFF334155), width: 1),
-        ),
-      ),
+      fontFamily: '-apple-system',
       appBarTheme: const AppBarTheme(
-        backgroundColor: surfaceDark,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
+        centerTitle: false,
         iconTheme: IconThemeData(color: textLight),
         titleTextStyle: TextStyle(
           color: textLight,
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.5,
+          fontSize: 26,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.6,
         ),
       ),
       textTheme: const TextTheme(
         titleLarge: TextStyle(
           color: textLight,
-          fontSize: 20,
+          fontSize: 22,
           fontWeight: FontWeight.w700,
+          letterSpacing: -0.4,
         ),
         bodyLarge: TextStyle(
           color: textLight,
@@ -107,7 +94,7 @@ class AppTheme {
           fontWeight: FontWeight.w500,
         ),
         bodyMedium: TextStyle(
-          color: textMutedDark,
+          color: textSecondaryDark,
           fontSize: 14,
         ),
       ),
