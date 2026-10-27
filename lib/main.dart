@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'data/database.dart';
 import 'providers/habit_provider.dart';
+import 'services/notification_service.dart';
 import 'ui/screens/splash_screen.dart';
 import 'ui/theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
   final database = AppDatabase();
 
   runApp(

@@ -72,6 +72,9 @@ class NotificationService {
   }
 
   Future<void> scheduleHabitReminder(Habit habit) async {
+    if (!_isInitialized) {
+      await init();
+    }
     if (!habit.isReminderEnabled || habit.reminderTime == null) {
       await cancelHabitReminder(habit.id);
       return;
@@ -83,9 +86,17 @@ class NotificationService {
     final hour = int.tryParse(parts[0]) ?? 8;
     final minute = int.tryParse(parts[1]) ?? 0;
 
-    final now = tz.TZDateTime.now(tz.local);
+    tz.Location location;
+    try {
+      location = tz.local;
+    } catch (_) {
+      tz.initializeTimeZones();
+      location = tz.UTC;
+    }
+
+    final now = tz.TZDateTime.now(location);
     var scheduledDate = tz.TZDateTime(
-      tz.local,
+      location,
       now.year,
       now.month,
       now.day,
