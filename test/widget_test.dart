@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:willtrack/models/habit_analytics.dart';
 import 'package:willtrack/ui/screens/splash_screen.dart';
 import 'package:willtrack/ui/widgets/daily_progress_card.dart';
 import 'package:willtrack/ui/widgets/difficulty_selector.dart';
@@ -210,6 +211,7 @@ void main() {
         currentStreak: 5,
         longestStreak: 12,
         totalCompletions: 20,
+        completionRate: 0.85,
         averageDifficulty: 6.5,
         trendMessage: 'Getting easier! Habit mastery improving 🚀',
         difficultyDistribution: {
@@ -228,6 +230,20 @@ void main() {
             completedAt: DateTime.now(),
           ),
         ],
+        weeklyPerformance: WeeklyPerformance(
+          weekStart: DateTime.now(),
+          weekEnd: DateTime.now(),
+          days: [],
+          scheduledDaysCount: 5,
+          completedDaysCount: 4,
+        ),
+        monthlyPerformance: MonthlyPerformance(
+          month: DateTime.now(),
+          totalDaysInMonth: 30,
+          scheduledDays: 20,
+          completedDays: 17,
+          completionRate: 0.85,
+        ),
       );
 
       await tester.pumpWidget(
@@ -247,7 +263,8 @@ void main() {
       expect(find.text('12 Days'), findsOneWidget);
       expect(find.text('6.5 / 10'), findsOneWidget);
       expect(find.text('Getting easier! Habit mastery improving 🚀'), findsOneWidget);
-      expect(find.text('12 sessions'), findsOneWidget);
+      expect(find.text('12'), findsOneWidget);
+      expect(find.text('Moderate (4-7)'), findsOneWidget);
     });
   });
 }

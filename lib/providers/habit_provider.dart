@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/database.dart';
+import '../models/habit_analytics.dart';
 import '../services/notification_service.dart';
 
 class HabitItem {
@@ -9,6 +10,7 @@ class HabitItem {
   final bool isCompletedToday;
   final int? todayDifficulty;
   final String? todayNote;
+  final double? todayValueLogged;
   final bool isDueToday;
 
   HabitItem({
@@ -16,6 +18,7 @@ class HabitItem {
     required this.isCompletedToday,
     this.todayDifficulty,
     this.todayNote,
+    this.todayValueLogged,
     this.isDueToday = true,
   });
 }
@@ -24,19 +27,27 @@ class HabitStats {
   final int currentStreak;
   final int longestStreak;
   final int totalCompletions;
+  final double completionRate;
   final double averageDifficulty;
   final String trendMessage;
   final Map<String, int> difficultyDistribution;
   final List<CheckIn> recentSessions;
+  final WeeklyPerformance weeklyPerformance;
+  final MonthlyPerformance monthlyPerformance;
+  final NumericalGoalProgress? numericalProgress;
 
   HabitStats({
     required this.currentStreak,
     required this.longestStreak,
     required this.totalCompletions,
+    required this.completionRate,
     required this.averageDifficulty,
     required this.trendMessage,
     required this.difficultyDistribution,
     required this.recentSessions,
+    required this.weeklyPerformance,
+    required this.monthlyPerformance,
+    this.numericalProgress,
   });
 }
 
@@ -182,6 +193,7 @@ class HabitProvider extends ChangeNotifier {
         isCompletedToday: checkIn != null,
         todayDifficulty: checkIn?.difficulty,
         todayNote: checkIn?.note,
+        todayValueLogged: checkIn?.valueLogged,
         isDueToday: isDue,
       );
     }).toList();
@@ -227,6 +239,8 @@ class HabitProvider extends ChangeNotifier {
     String scheduleDays = '',
     int weeklyTargetDays = 7,
     DateTime? startDate,
+    double? targetValue,
+    String? unit,
     String? reminderTime,
     bool isReminderEnabled = false,
   }) async {
@@ -241,6 +255,8 @@ class HabitProvider extends ChangeNotifier {
       scheduleDays: scheduleDays,
       weeklyTargetDays: weeklyTargetDays,
       startDate: startDate,
+      targetValue: targetValue,
+      unit: unit,
       reminderTime: reminderTime,
       isReminderEnabled: isReminderEnabled,
     );
@@ -265,6 +281,8 @@ class HabitProvider extends ChangeNotifier {
     String scheduleDays = '',
     int weeklyTargetDays = 7,
     DateTime? startDate,
+    double? targetValue,
+    String? unit,
     String? reminderTime,
     bool isReminderEnabled = false,
   }) async {
@@ -280,6 +298,8 @@ class HabitProvider extends ChangeNotifier {
       scheduleDays: scheduleDays,
       weeklyTargetDays: weeklyTargetDays,
       startDate: startDate,
+      targetValue: targetValue,
+      unit: unit,
       reminderTime: reminderTime,
       isReminderEnabled: isReminderEnabled,
     );
@@ -316,17 +336,32 @@ class HabitProvider extends ChangeNotifier {
     await refresh();
   }
 
-  Future<void> toggleHabitCompletion(int habitId, {int? difficulty = 5}) async {
-    await database.toggleCheckIn(habitId, todayString, difficulty: difficulty);
+  Future<void> toggleHabitCompletion(
+    int habitId, {
+    int? difficulty = 5,
+    double? valueLogged,
+  }) async {
+    await database.toggleCheckIn(
+      habitId,
+      todayString,
+      difficulty: difficulty,
+      valueLogged: valueLogged,
+    );
     await refresh();
   }
 
-  Future<void> markHabitDifficulty(int habitId, int difficulty) async {
+  Future<void> markHabitDifficulty(
+    int habitId,
+    int difficulty, {
+    double? valueLogged,
+  }) async {
+    final existing = await database.getCheckInForDate(habitId, todayString);
     await database.setCheckInStatusAndNote(
       habitId,
       todayString,
       status: 'completed',
       difficulty: difficulty,
+      valueLogged: valueLogged ?? existing?.valueLogged,
     );
     await refresh();
   }
@@ -335,6 +370,7 @@ class HabitProvider extends ChangeNotifier {
     int habitId, {
     required int difficulty,
     String? note,
+    double? valueLogged,
   }) async {
     await database.setCheckInStatusAndNote(
       habitId,
@@ -342,6 +378,7 @@ class HabitProvider extends ChangeNotifier {
       status: 'completed',
       difficulty: difficulty,
       note: note,
+      valueLogged: valueLogged,
     );
     await refresh();
   }
@@ -360,6 +397,7 @@ class HabitProvider extends ChangeNotifier {
     required String status,
     String? note,
     int? difficulty,
+    double? valueLogged,
   }) async {
     await database.setCheckInStatusAndNote(
       habitId,
@@ -367,25 +405,184 @@ class HabitProvider extends ChangeNotifier {
       status: status,
       note: note,
       difficulty: difficulty,
+      valueLogged: valueLogged,
     );
     await refresh();
   }
 
-  HabitStats computeHabitStats(List<CheckIn> history) {
+  WeeklyPerformance computeWeeklyPerformance(
+    Habit habit,
+    List<CheckIn> history, [
+    DateTime? referenceDate,
+  ]) {
+    final ref = referenceDate ?? DateTime.now();
+    // In Dart weekday: 1 = Mon ... 7 = Sun
+    final monday = DateTime(ref.year, ref.month, ref.day)
+        .subtract(Duration(days: ref.weekday - 1));
+    final sunday = monday.add(const Duration(days: 6));
+
+    final checkInMap = {for (var c in history) c.date: c};
+    final List<WeekdayPerformance> days = [];
+    const dayLabels = {
+      1: 'Mon',
+      2: 'Tue',
+      3: 'Wed',
+      4: 'Thu',
+      5: 'Fri',
+      6: 'Sat',
+      7: 'Sun',
+    };
+
+    int scheduledCount = 0;
+    int completedCount = 0;
+
+    for (int i = 0; i < 7; i++) {
+      final dayDate = monday.add(Duration(days: i));
+      final dateStr = DateFormat('yyyy-MM-dd').format(dayDate);
+      final isScheduled = isHabitDueOn(habit, dayDate);
+      final checkIn = checkInMap[dateStr];
+      final isCompleted = checkIn?.status == 'completed';
+      final isSkipped = checkIn?.status == 'skipped';
+
+      if (isScheduled) {
+        scheduledCount++;
+        if (isCompleted) {
+          completedCount++;
+        }
+      }
+
+      days.add(
+        WeekdayPerformance(
+          weekday: dayDate.weekday,
+          dayLabel: dayLabels[dayDate.weekday] ?? '',
+          dateStr: dateStr,
+          isScheduled: isScheduled,
+          isCompleted: isCompleted,
+          isSkipped: isSkipped,
+          valueLogged: checkIn?.valueLogged,
+        ),
+      );
+    }
+
+    return WeeklyPerformance(
+      weekStart: monday,
+      weekEnd: sunday,
+      days: days,
+      scheduledDaysCount: scheduledCount,
+      completedDaysCount: completedCount,
+    );
+  }
+
+  MonthlyPerformance computeMonthlyPerformance(
+    Habit habit,
+    List<CheckIn> history, [
+    DateTime? monthDate,
+  ]) {
+    final currentMonth = monthDate ?? DateTime.now();
+    final firstDay = DateTime(currentMonth.year, currentMonth.month, 1);
+    final lastDay = DateTime(currentMonth.year, currentMonth.month + 1, 0);
+    final daysInMonth = lastDay.day;
+
+    final checkInMap = {for (var c in history) c.date: c};
+
+    int scheduled = 0;
+    int completed = 0;
+
+    for (int day = 1; day <= daysInMonth; day++) {
+      final date = DateTime(currentMonth.year, currentMonth.month, day);
+      if (isHabitDueOn(habit, date)) {
+        scheduled++;
+        final dStr = DateFormat('yyyy-MM-dd').format(date);
+        if (checkInMap[dStr]?.status == 'completed') {
+          completed++;
+        }
+      }
+    }
+
+    // Previous month rate
+    final prevMonthFirst = DateTime(currentMonth.year, currentMonth.month - 1, 1);
+    final prevMonthLast = DateTime(currentMonth.year, currentMonth.month, 0);
+    int prevScheduled = 0;
+    int prevCompleted = 0;
+
+    for (int day = 1; day <= prevMonthLast.day; day++) {
+      final date = DateTime(prevMonthFirst.year, prevMonthFirst.month, day);
+      if (isHabitDueOn(habit, date)) {
+        prevScheduled++;
+        final dStr = DateFormat('yyyy-MM-dd').format(date);
+        if (checkInMap[dStr]?.status == 'completed') {
+          prevCompleted++;
+        }
+      }
+    }
+
+    final currentRate = scheduled > 0 ? (completed / scheduled) : 0.0;
+    final prevRate = prevScheduled > 0 ? (prevCompleted / prevScheduled) : null;
+
+    return MonthlyPerformance(
+      month: firstDay,
+      totalDaysInMonth: daysInMonth,
+      scheduledDays: scheduled,
+      completedDays: completed,
+      completionRate: currentRate,
+      previousMonthRate: prevRate,
+    );
+  }
+
+  HabitStats computeHabitStats(Habit habit, List<CheckIn> history) {
     final completed = history
         .where((c) => c.status == 'completed')
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
+
+    final weeklyPerf = computeWeeklyPerformance(habit, history);
+    final monthlyPerf = computeMonthlyPerformance(habit, history);
+
+    // Numerical Goal Progress if habit has targetValue
+    NumericalGoalProgress? numericalProgress;
+    if (habit.targetValue != null && habit.targetValue! > 0) {
+      final loggedValues = completed
+          .map((c) => c.valueLogged)
+          .whereType<double>()
+          .toList();
+
+      if (loggedValues.isNotEmpty) {
+        final total = loggedValues.reduce((a, b) => a + b);
+        final avg = total / loggedValues.length;
+        final max = loggedValues.reduce((a, b) => a > b ? a : b);
+        numericalProgress = NumericalGoalProgress(
+          targetValue: habit.targetValue!,
+          unit: habit.unit ?? '',
+          totalLogged: total,
+          averageLogged: avg,
+          highestLogged: max,
+          logsCount: loggedValues.length,
+        );
+      } else {
+        numericalProgress = NumericalGoalProgress(
+          targetValue: habit.targetValue!,
+          unit: habit.unit ?? '',
+          totalLogged: 0,
+          averageLogged: 0,
+          highestLogged: 0,
+          logsCount: 0,
+        );
+      }
+    }
 
     if (completed.isEmpty) {
       return HabitStats(
         currentStreak: 0,
         longestStreak: 0,
         totalCompletions: 0,
+        completionRate: 0.0,
         averageDifficulty: 0.0,
         trendMessage: 'No completed sessions logged yet.',
         difficultyDistribution: {'Easy (1-3)': 0, 'Moderate (4-7)': 0, 'Hard (8-10)': 0},
         recentSessions: [],
+        weeklyPerformance: weeklyPerf,
+        monthlyPerformance: monthlyPerf,
+        numericalProgress: numericalProgress,
       );
     }
 
@@ -426,56 +623,79 @@ class HabitProvider extends ChangeNotifier {
       }
     }
 
-    final dateSet = completed.map((c) => c.date).toSet();
+    // Schedule-Aware Streak Calculation
+    final checkInDateSet = completed.map((c) => c.date).toSet();
     final now = DateTime.now();
-    final todayFormatted = DateFormat('yyyy-MM-dd').format(now);
-    final yesterdayFormatted =
-        DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 1)));
+    final today = DateTime(now.year, now.month, now.day);
 
+    // Current Streak (skips non-scheduled days without breaking the streak)
     int currentStreak = 0;
-    DateTime checkDate = dateSet.contains(todayFormatted)
-        ? now
-        : dateSet.contains(yesterdayFormatted)
-            ? now.subtract(const Duration(days: 1))
-            : now;
+    DateTime checkDate = today;
 
-    if (dateSet.contains(todayFormatted) || dateSet.contains(yesterdayFormatted)) {
-      while (true) {
-        final dStr = DateFormat('yyyy-MM-dd').format(checkDate);
-        if (dateSet.contains(dStr)) {
+    // If today is scheduled and not completed yet, start check from yesterday
+    final todayDue = isHabitDueOn(habit, today);
+    final todayStr = DateFormat('yyyy-MM-dd').format(today);
+    if (todayDue && !checkInDateSet.contains(todayStr)) {
+      checkDate = today.subtract(const Duration(days: 1));
+    }
+
+    while (true) {
+      final isDue = isHabitDueOn(habit, checkDate);
+      final dStr = DateFormat('yyyy-MM-dd').format(checkDate);
+
+      if (isDue) {
+        if (checkInDateSet.contains(dStr)) {
           currentStreak++;
-          checkDate = checkDate.subtract(const Duration(days: 1));
         } else {
+          // Missed a scheduled active day -> streak ends
           break;
         }
       }
+      checkDate = checkDate.subtract(const Duration(days: 1));
+      // Don't go before habit start date
+      final startDay = DateTime(habit.startDate.year, habit.startDate.month, habit.startDate.day);
+      if (checkDate.isBefore(startDay)) {
+        break;
+      }
     }
 
-    final sortedAsc = completed.map((c) => DateFormat('yyyy-MM-dd').parse(c.date)).toList()
-      ..sort();
+    // Longest Streak (schedule-aware)
     int longest = 0;
-    int tempStreak = 0;
-    DateTime? prev;
+    int rollingStreak = 0;
 
-    for (final d in sortedAsc) {
-      if (prev == null) {
-        tempStreak = 1;
-      } else {
-        final diff = d.difference(prev).inDays;
-        if (diff == 1) {
-          tempStreak++;
-        } else if (diff > 1) {
-          tempStreak = 1;
+    // Scan backwards from today to habit start date or oldest check-in
+    final startDay = DateTime(habit.startDate.year, habit.startDate.month, habit.startDate.day);
+    DateTime scanDate = today;
+    int scheduledDaysTotal = 0;
+
+    while (!scanDate.isBefore(startDay)) {
+      final isDue = isHabitDueOn(habit, scanDate);
+      final dStr = DateFormat('yyyy-MM-dd').format(scanDate);
+
+      if (isDue) {
+        scheduledDaysTotal++;
+        if (checkInDateSet.contains(dStr)) {
+          rollingStreak++;
+          if (rollingStreak > longest) longest = rollingStreak;
+        } else {
+          rollingStreak = 0;
         }
       }
-      if (tempStreak > longest) longest = tempStreak;
-      prev = d;
+      scanDate = scanDate.subtract(const Duration(days: 1));
     }
+
+    if (currentStreak > longest) longest = currentStreak;
+
+    // Overall completion rate based on scheduled days to date
+    final completionRate = scheduledDaysTotal > 0
+        ? (total / scheduledDaysTotal).clamp(0.0, 1.0)
+        : 1.0;
 
     return HabitStats(
       currentStreak: currentStreak,
       longestStreak: longest,
       totalCompletions: total,
+      completionRate: completionRate,
       averageDifficulty: avgDiff,
       trendMessage: trend,
       difficultyDistribution: {
@@ -484,6 +704,9 @@ class HabitProvider extends ChangeNotifier {
         'Hard (8-10)': hardCount,
       },
       recentSessions: completed.take(14).toList(),
+      weeklyPerformance: weeklyPerf,
+      monthlyPerformance: monthlyPerf,
+      numericalProgress: numericalProgress,
     );
   }
 

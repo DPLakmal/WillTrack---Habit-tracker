@@ -34,6 +34,8 @@ class HomeScreen extends StatelessWidget {
         scheduleDays: result.scheduleDays,
         weeklyTargetDays: result.weeklyTargetDays,
         startDate: result.startDate,
+        targetValue: result.targetValue,
+        unit: result.unit,
         reminderTime: result.reminderTime,
         isReminderEnabled: result.isReminderEnabled,
       );
@@ -56,6 +58,8 @@ class HomeScreen extends StatelessWidget {
         initialScheduleDays: habit.scheduleDays,
         initialWeeklyTargetDays: habit.weeklyTargetDays,
         initialStartDate: habit.startDate,
+        initialTargetValue: habit.targetValue,
+        initialUnit: habit.unit,
         initialReminderTime: habit.reminderTime,
         initialIsReminderEnabled: habit.isReminderEnabled,
         confirmLabel: 'Update',
@@ -74,6 +78,8 @@ class HomeScreen extends StatelessWidget {
         scheduleDays: result.scheduleDays,
         weeklyTargetDays: result.weeklyTargetDays,
         startDate: result.startDate,
+        targetValue: result.targetValue,
+        unit: result.unit,
         reminderTime: result.reminderTime,
         isReminderEnabled: result.isReminderEnabled,
       );

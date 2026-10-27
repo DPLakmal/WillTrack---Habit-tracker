@@ -52,6 +52,13 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
   ) {
     final dateStr = DateFormat('yyyy-MM-dd').format(date);
     final noteController = TextEditingController(text: checkIn?.note ?? '');
+    final valueController = TextEditingController(
+      text: checkIn?.valueLogged != null
+          ? (checkIn!.valueLogged! % 1 == 0
+              ? checkIn.valueLogged!.toInt().toString()
+              : checkIn.valueLogged!.toString())
+          : '',
+    );
     String selectedStatus = checkIn?.status ?? 'none';
     int selectedDifficulty = checkIn?.difficulty ?? 5;
     final habitColor = Color(_currentHabit.colorValue);
@@ -144,6 +151,38 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                     const SizedBox(height: 18),
 
                     if (selectedStatus == 'completed') ...[
+                      // Numerical Goal input if habit has targetValue
+                      if (_currentHabit.targetValue != null) ...[
+                        Row(
+                          children: [
+                            Icon(Icons.flag_outlined, size: 16, color: habitColor),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Goal Progress (${_currentHabit.unit ?? 'amount'})',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: valueController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          decoration: InputDecoration(
+                            hintText: 'Target: ${_currentHabit.targetValue!.toStringAsFixed(0)} ${_currentHabit.unit ?? ''}',
+                            filled: true,
+                            fillColor: Colors.black.withValues(alpha: 0.04),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                            suffixText: _currentHabit.unit,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
                       DifficultySelector(
                         selectedDifficulty: selectedDifficulty,
                         onChanged: (val) {
@@ -185,6 +224,9 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                         onPressed: () async {
+                          final double? logged = selectedStatus == 'completed'
+                              ? double.tryParse(valueController.text.trim())
+                              : null;
                           await provider.updateDayLog(
                             _currentHabit.id,
                             dateStr,
@@ -195,6 +237,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                             note: noteController.text.trim().isEmpty
                                 ? null
                                 : noteController.text.trim(),
+                            valueLogged: logged,
                           );
                           if (sheetContext.mounted) {
                             Navigator.pop(sheetContext);
@@ -230,6 +273,8 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         initialScheduleDays: _currentHabit.scheduleDays,
         initialWeeklyTargetDays: _currentHabit.weeklyTargetDays,
         initialStartDate: _currentHabit.startDate,
+        initialTargetValue: _currentHabit.targetValue,
+        initialUnit: _currentHabit.unit,
         initialReminderTime: _currentHabit.reminderTime,
         initialIsReminderEnabled: _currentHabit.isReminderEnabled,
         confirmLabel: 'Update',
@@ -248,6 +293,8 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         scheduleDays: result.scheduleDays,
         weeklyTargetDays: result.weeklyTargetDays,
         startDate: result.startDate,
+        targetValue: result.targetValue,
+        unit: result.unit,
         reminderTime: result.reminderTime,
         isReminderEnabled: result.isReminderEnabled,
       );
@@ -290,7 +337,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                 for (var c in history) c.date: c,
               };
 
-              final stats = provider.computeHabitStats(history);
+              final stats = provider.computeHabitStats(_currentHabit, history);
 
               return SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

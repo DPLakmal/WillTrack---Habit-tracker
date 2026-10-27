@@ -28,6 +28,10 @@ class Habits extends Table {
   DateTimeColumn get startDate =>
       dateTime().withDefault(currentDateAndTime)();
 
+  // Numerical Goal (Optional e.g. 30.0 mins, 2000.0 ml, 10.0 pages)
+  RealColumn get targetValue => real().nullable()();
+  TextColumn get unit => text().nullable()();
+
   // Reminder settings: "HH:mm" e.g. "08:30"
   TextColumn get reminderTime => text().nullable()();
   BoolColumn get isReminderEnabled =>
@@ -51,6 +55,8 @@ class CheckIns extends Table {
   TextColumn get note => text().nullable()();
   // 1-10 difficulty rating scale
   IntColumn get difficulty => integer().nullable()();
+  // Numerical value achieved (e.g. 35.0 mins)
+  RealColumn get valueLogged => real().nullable()();
   DateTimeColumn get completedAt =>
       dateTime().withDefault(currentDateAndTime)();
 }
@@ -60,7 +66,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -103,6 +109,11 @@ class AppDatabase extends _$AppDatabase {
           await addColumnIfNotExists('habits', 'start_date', "INTEGER NOT NULL DEFAULT $nowEpoch");
           await addColumnIfNotExists('habits', 'reminder_time', "TEXT NULL");
           await addColumnIfNotExists('habits', 'is_reminder_enabled', "INTEGER NOT NULL DEFAULT 0");
+        }
+        if (from < 5) {
+          await addColumnIfNotExists('habits', 'target_value', "REAL NULL");
+          await addColumnIfNotExists('habits', 'unit', "TEXT NULL");
+          await addColumnIfNotExists('check_ins', 'value_logged', "REAL NULL");
         }
       },
     );
@@ -155,6 +166,8 @@ class AppDatabase extends _$AppDatabase {
     String scheduleDays = '',
     int weeklyTargetDays = 7,
     DateTime? startDate,
+    double? targetValue,
+    String? unit,
     String? reminderTime,
     bool isReminderEnabled = false,
   }) {
@@ -169,6 +182,8 @@ class AppDatabase extends _$AppDatabase {
         scheduleDays: Value(scheduleDays),
         weeklyTargetDays: Value(weeklyTargetDays),
         startDate: Value(startDate ?? DateTime.now()),
+        targetValue: Value(targetValue),
+        unit: Value(unit?.trim()),
         reminderTime: Value(reminderTime),
         isReminderEnabled: Value(isReminderEnabled),
       ),
@@ -186,6 +201,8 @@ class AppDatabase extends _$AppDatabase {
     String scheduleDays = '',
     int weeklyTargetDays = 7,
     DateTime? startDate,
+    double? targetValue,
+    String? unit,
     String? reminderTime,
     bool isReminderEnabled = false,
   }) {
@@ -201,6 +218,8 @@ class AppDatabase extends _$AppDatabase {
             scheduleDays: Value(scheduleDays),
             weeklyTargetDays: Value(weeklyTargetDays),
             startDate: Value(startDate ?? DateTime.now()),
+            targetValue: Value(targetValue),
+            unit: Value(unit?.trim()),
             reminderTime: Value(reminderTime),
             isReminderEnabled: Value(isReminderEnabled),
           ),
@@ -266,6 +285,7 @@ class AppDatabase extends _$AppDatabase {
     int habitId,
     String dateStr, {
     int? difficulty = 5,
+    double? valueLogged,
   }) async {
     final existing = await (select(checkIns)
           ..where((tbl) =>
@@ -281,6 +301,7 @@ class AppDatabase extends _$AppDatabase {
           date: dateStr,
           status: const Value('completed'),
           difficulty: Value(difficulty),
+          valueLogged: Value(valueLogged),
         ),
       );
     }
@@ -292,6 +313,7 @@ class AppDatabase extends _$AppDatabase {
     required String status,
     String? note,
     int? difficulty,
+    double? valueLogged,
   }) async {
     final existing = await (select(checkIns)
           ..where((tbl) =>
@@ -307,6 +329,7 @@ class AppDatabase extends _$AppDatabase {
             status: Value(status),
             note: Value(note),
             difficulty: Value(difficulty),
+            valueLogged: Value(valueLogged),
           ),
         );
       }
@@ -319,6 +342,7 @@ class AppDatabase extends _$AppDatabase {
             status: Value(status),
             note: Value(note),
             difficulty: Value(difficulty),
+            valueLogged: Value(valueLogged),
           ),
         );
       }

@@ -127,6 +127,26 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _targetValueMeta = const VerificationMeta(
+    'targetValue',
+  );
+  @override
+  late final GeneratedColumn<double> targetValue = GeneratedColumn<double>(
+    'target_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unitMeta = const VerificationMeta('unit');
+  @override
+  late final GeneratedColumn<String> unit = GeneratedColumn<String>(
+    'unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _reminderTimeMeta = const VerificationMeta(
     'reminderTime',
   );
@@ -192,6 +212,8 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     scheduleDays,
     weeklyTargetDays,
     startDate,
+    targetValue,
+    unit,
     reminderTime,
     isReminderEnabled,
     isArchived,
@@ -280,6 +302,21 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
       );
     }
+    if (data.containsKey('target_value')) {
+      context.handle(
+        _targetValueMeta,
+        targetValue.isAcceptableOrUnknown(
+          data['target_value']!,
+          _targetValueMeta,
+        ),
+      );
+    }
+    if (data.containsKey('unit')) {
+      context.handle(
+        _unitMeta,
+        unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
+      );
+    }
     if (data.containsKey('reminder_time')) {
       context.handle(
         _reminderTimeMeta,
@@ -359,6 +396,14 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}start_date'],
       )!,
+      targetValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}target_value'],
+      ),
+      unit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit'],
+      ),
       reminderTime: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}reminder_time'],
@@ -395,6 +440,8 @@ class Habit extends DataClass implements Insertable<Habit> {
   final String scheduleDays;
   final int weeklyTargetDays;
   final DateTime startDate;
+  final double? targetValue;
+  final String? unit;
   final String? reminderTime;
   final bool isReminderEnabled;
   final bool isArchived;
@@ -410,6 +457,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     required this.scheduleDays,
     required this.weeklyTargetDays,
     required this.startDate,
+    this.targetValue,
+    this.unit,
     this.reminderTime,
     required this.isReminderEnabled,
     required this.isArchived,
@@ -430,6 +479,12 @@ class Habit extends DataClass implements Insertable<Habit> {
     map['schedule_days'] = Variable<String>(scheduleDays);
     map['weekly_target_days'] = Variable<int>(weeklyTargetDays);
     map['start_date'] = Variable<DateTime>(startDate);
+    if (!nullToAbsent || targetValue != null) {
+      map['target_value'] = Variable<double>(targetValue);
+    }
+    if (!nullToAbsent || unit != null) {
+      map['unit'] = Variable<String>(unit);
+    }
     if (!nullToAbsent || reminderTime != null) {
       map['reminder_time'] = Variable<String>(reminderTime);
     }
@@ -453,6 +508,10 @@ class Habit extends DataClass implements Insertable<Habit> {
       scheduleDays: Value(scheduleDays),
       weeklyTargetDays: Value(weeklyTargetDays),
       startDate: Value(startDate),
+      targetValue: targetValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetValue),
+      unit: unit == null && nullToAbsent ? const Value.absent() : Value(unit),
       reminderTime: reminderTime == null && nullToAbsent
           ? const Value.absent()
           : Value(reminderTime),
@@ -478,6 +537,8 @@ class Habit extends DataClass implements Insertable<Habit> {
       scheduleDays: serializer.fromJson<String>(json['scheduleDays']),
       weeklyTargetDays: serializer.fromJson<int>(json['weeklyTargetDays']),
       startDate: serializer.fromJson<DateTime>(json['startDate']),
+      targetValue: serializer.fromJson<double?>(json['targetValue']),
+      unit: serializer.fromJson<String?>(json['unit']),
       reminderTime: serializer.fromJson<String?>(json['reminderTime']),
       isReminderEnabled: serializer.fromJson<bool>(json['isReminderEnabled']),
       isArchived: serializer.fromJson<bool>(json['isArchived']),
@@ -498,6 +559,8 @@ class Habit extends DataClass implements Insertable<Habit> {
       'scheduleDays': serializer.toJson<String>(scheduleDays),
       'weeklyTargetDays': serializer.toJson<int>(weeklyTargetDays),
       'startDate': serializer.toJson<DateTime>(startDate),
+      'targetValue': serializer.toJson<double?>(targetValue),
+      'unit': serializer.toJson<String?>(unit),
       'reminderTime': serializer.toJson<String?>(reminderTime),
       'isReminderEnabled': serializer.toJson<bool>(isReminderEnabled),
       'isArchived': serializer.toJson<bool>(isArchived),
@@ -516,6 +579,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     String? scheduleDays,
     int? weeklyTargetDays,
     DateTime? startDate,
+    Value<double?> targetValue = const Value.absent(),
+    Value<String?> unit = const Value.absent(),
     Value<String?> reminderTime = const Value.absent(),
     bool? isReminderEnabled,
     bool? isArchived,
@@ -531,6 +596,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     scheduleDays: scheduleDays ?? this.scheduleDays,
     weeklyTargetDays: weeklyTargetDays ?? this.weeklyTargetDays,
     startDate: startDate ?? this.startDate,
+    targetValue: targetValue.present ? targetValue.value : this.targetValue,
+    unit: unit.present ? unit.value : this.unit,
     reminderTime: reminderTime.present ? reminderTime.value : this.reminderTime,
     isReminderEnabled: isReminderEnabled ?? this.isReminderEnabled,
     isArchived: isArchived ?? this.isArchived,
@@ -558,6 +625,10 @@ class Habit extends DataClass implements Insertable<Habit> {
           ? data.weeklyTargetDays.value
           : this.weeklyTargetDays,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      targetValue: data.targetValue.present
+          ? data.targetValue.value
+          : this.targetValue,
+      unit: data.unit.present ? data.unit.value : this.unit,
       reminderTime: data.reminderTime.present
           ? data.reminderTime.value
           : this.reminderTime,
@@ -584,6 +655,8 @@ class Habit extends DataClass implements Insertable<Habit> {
           ..write('scheduleDays: $scheduleDays, ')
           ..write('weeklyTargetDays: $weeklyTargetDays, ')
           ..write('startDate: $startDate, ')
+          ..write('targetValue: $targetValue, ')
+          ..write('unit: $unit, ')
           ..write('reminderTime: $reminderTime, ')
           ..write('isReminderEnabled: $isReminderEnabled, ')
           ..write('isArchived: $isArchived, ')
@@ -604,6 +677,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     scheduleDays,
     weeklyTargetDays,
     startDate,
+    targetValue,
+    unit,
     reminderTime,
     isReminderEnabled,
     isArchived,
@@ -623,6 +698,8 @@ class Habit extends DataClass implements Insertable<Habit> {
           other.scheduleDays == this.scheduleDays &&
           other.weeklyTargetDays == this.weeklyTargetDays &&
           other.startDate == this.startDate &&
+          other.targetValue == this.targetValue &&
+          other.unit == this.unit &&
           other.reminderTime == this.reminderTime &&
           other.isReminderEnabled == this.isReminderEnabled &&
           other.isArchived == this.isArchived &&
@@ -640,6 +717,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   final Value<String> scheduleDays;
   final Value<int> weeklyTargetDays;
   final Value<DateTime> startDate;
+  final Value<double?> targetValue;
+  final Value<String?> unit;
   final Value<String?> reminderTime;
   final Value<bool> isReminderEnabled;
   final Value<bool> isArchived;
@@ -655,6 +734,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.scheduleDays = const Value.absent(),
     this.weeklyTargetDays = const Value.absent(),
     this.startDate = const Value.absent(),
+    this.targetValue = const Value.absent(),
+    this.unit = const Value.absent(),
     this.reminderTime = const Value.absent(),
     this.isReminderEnabled = const Value.absent(),
     this.isArchived = const Value.absent(),
@@ -671,6 +752,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.scheduleDays = const Value.absent(),
     this.weeklyTargetDays = const Value.absent(),
     this.startDate = const Value.absent(),
+    this.targetValue = const Value.absent(),
+    this.unit = const Value.absent(),
     this.reminderTime = const Value.absent(),
     this.isReminderEnabled = const Value.absent(),
     this.isArchived = const Value.absent(),
@@ -687,6 +770,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Expression<String>? scheduleDays,
     Expression<int>? weeklyTargetDays,
     Expression<DateTime>? startDate,
+    Expression<double>? targetValue,
+    Expression<String>? unit,
     Expression<String>? reminderTime,
     Expression<bool>? isReminderEnabled,
     Expression<bool>? isArchived,
@@ -703,6 +788,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       if (scheduleDays != null) 'schedule_days': scheduleDays,
       if (weeklyTargetDays != null) 'weekly_target_days': weeklyTargetDays,
       if (startDate != null) 'start_date': startDate,
+      if (targetValue != null) 'target_value': targetValue,
+      if (unit != null) 'unit': unit,
       if (reminderTime != null) 'reminder_time': reminderTime,
       if (isReminderEnabled != null) 'is_reminder_enabled': isReminderEnabled,
       if (isArchived != null) 'is_archived': isArchived,
@@ -721,6 +808,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Value<String>? scheduleDays,
     Value<int>? weeklyTargetDays,
     Value<DateTime>? startDate,
+    Value<double?>? targetValue,
+    Value<String?>? unit,
     Value<String?>? reminderTime,
     Value<bool>? isReminderEnabled,
     Value<bool>? isArchived,
@@ -737,6 +826,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       scheduleDays: scheduleDays ?? this.scheduleDays,
       weeklyTargetDays: weeklyTargetDays ?? this.weeklyTargetDays,
       startDate: startDate ?? this.startDate,
+      targetValue: targetValue ?? this.targetValue,
+      unit: unit ?? this.unit,
       reminderTime: reminderTime ?? this.reminderTime,
       isReminderEnabled: isReminderEnabled ?? this.isReminderEnabled,
       isArchived: isArchived ?? this.isArchived,
@@ -777,6 +868,12 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     if (startDate.present) {
       map['start_date'] = Variable<DateTime>(startDate.value);
     }
+    if (targetValue.present) {
+      map['target_value'] = Variable<double>(targetValue.value);
+    }
+    if (unit.present) {
+      map['unit'] = Variable<String>(unit.value);
+    }
     if (reminderTime.present) {
       map['reminder_time'] = Variable<String>(reminderTime.value);
     }
@@ -805,6 +902,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
           ..write('scheduleDays: $scheduleDays, ')
           ..write('weeklyTargetDays: $weeklyTargetDays, ')
           ..write('startDate: $startDate, ')
+          ..write('targetValue: $targetValue, ')
+          ..write('unit: $unit, ')
           ..write('reminderTime: $reminderTime, ')
           ..write('isReminderEnabled: $isReminderEnabled, ')
           ..write('isArchived: $isArchived, ')
@@ -889,6 +988,17 @@ class $CheckInsTable extends CheckIns with TableInfo<$CheckInsTable, CheckIn> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _valueLoggedMeta = const VerificationMeta(
+    'valueLogged',
+  );
+  @override
+  late final GeneratedColumn<double> valueLogged = GeneratedColumn<double>(
+    'value_logged',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _completedAtMeta = const VerificationMeta(
     'completedAt',
   );
@@ -909,6 +1019,7 @@ class $CheckInsTable extends CheckIns with TableInfo<$CheckInsTable, CheckIn> {
     status,
     note,
     difficulty,
+    valueLogged,
     completedAt,
   ];
   @override
@@ -960,6 +1071,15 @@ class $CheckInsTable extends CheckIns with TableInfo<$CheckInsTable, CheckIn> {
         difficulty.isAcceptableOrUnknown(data['difficulty']!, _difficultyMeta),
       );
     }
+    if (data.containsKey('value_logged')) {
+      context.handle(
+        _valueLoggedMeta,
+        valueLogged.isAcceptableOrUnknown(
+          data['value_logged']!,
+          _valueLoggedMeta,
+        ),
+      );
+    }
     if (data.containsKey('completed_at')) {
       context.handle(
         _completedAtMeta,
@@ -1002,6 +1122,10 @@ class $CheckInsTable extends CheckIns with TableInfo<$CheckInsTable, CheckIn> {
         DriftSqlType.int,
         data['${effectivePrefix}difficulty'],
       ),
+      valueLogged: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}value_logged'],
+      ),
       completedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}completed_at'],
@@ -1022,6 +1146,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
   final String status;
   final String? note;
   final int? difficulty;
+  final double? valueLogged;
   final DateTime completedAt;
   const CheckIn({
     required this.id,
@@ -1030,6 +1155,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
     required this.status,
     this.note,
     this.difficulty,
+    this.valueLogged,
     required this.completedAt,
   });
   @override
@@ -1045,6 +1171,9 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
     if (!nullToAbsent || difficulty != null) {
       map['difficulty'] = Variable<int>(difficulty);
     }
+    if (!nullToAbsent || valueLogged != null) {
+      map['value_logged'] = Variable<double>(valueLogged);
+    }
     map['completed_at'] = Variable<DateTime>(completedAt);
     return map;
   }
@@ -1059,6 +1188,9 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
       difficulty: difficulty == null && nullToAbsent
           ? const Value.absent()
           : Value(difficulty),
+      valueLogged: valueLogged == null && nullToAbsent
+          ? const Value.absent()
+          : Value(valueLogged),
       completedAt: Value(completedAt),
     );
   }
@@ -1075,6 +1207,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
       status: serializer.fromJson<String>(json['status']),
       note: serializer.fromJson<String?>(json['note']),
       difficulty: serializer.fromJson<int?>(json['difficulty']),
+      valueLogged: serializer.fromJson<double?>(json['valueLogged']),
       completedAt: serializer.fromJson<DateTime>(json['completedAt']),
     );
   }
@@ -1088,6 +1221,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
       'status': serializer.toJson<String>(status),
       'note': serializer.toJson<String?>(note),
       'difficulty': serializer.toJson<int?>(difficulty),
+      'valueLogged': serializer.toJson<double?>(valueLogged),
       'completedAt': serializer.toJson<DateTime>(completedAt),
     };
   }
@@ -1099,6 +1233,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
     String? status,
     Value<String?> note = const Value.absent(),
     Value<int?> difficulty = const Value.absent(),
+    Value<double?> valueLogged = const Value.absent(),
     DateTime? completedAt,
   }) => CheckIn(
     id: id ?? this.id,
@@ -1107,6 +1242,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
     status: status ?? this.status,
     note: note.present ? note.value : this.note,
     difficulty: difficulty.present ? difficulty.value : this.difficulty,
+    valueLogged: valueLogged.present ? valueLogged.value : this.valueLogged,
     completedAt: completedAt ?? this.completedAt,
   );
   CheckIn copyWithCompanion(CheckInsCompanion data) {
@@ -1119,6 +1255,9 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
       difficulty: data.difficulty.present
           ? data.difficulty.value
           : this.difficulty,
+      valueLogged: data.valueLogged.present
+          ? data.valueLogged.value
+          : this.valueLogged,
       completedAt: data.completedAt.present
           ? data.completedAt.value
           : this.completedAt,
@@ -1134,14 +1273,23 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
           ..write('status: $status, ')
           ..write('note: $note, ')
           ..write('difficulty: $difficulty, ')
+          ..write('valueLogged: $valueLogged, ')
           ..write('completedAt: $completedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, habitId, date, status, note, difficulty, completedAt);
+  int get hashCode => Object.hash(
+    id,
+    habitId,
+    date,
+    status,
+    note,
+    difficulty,
+    valueLogged,
+    completedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1152,6 +1300,7 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
           other.status == this.status &&
           other.note == this.note &&
           other.difficulty == this.difficulty &&
+          other.valueLogged == this.valueLogged &&
           other.completedAt == this.completedAt);
 }
 
@@ -1162,6 +1311,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
   final Value<String> status;
   final Value<String?> note;
   final Value<int?> difficulty;
+  final Value<double?> valueLogged;
   final Value<DateTime> completedAt;
   const CheckInsCompanion({
     this.id = const Value.absent(),
@@ -1170,6 +1320,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     this.status = const Value.absent(),
     this.note = const Value.absent(),
     this.difficulty = const Value.absent(),
+    this.valueLogged = const Value.absent(),
     this.completedAt = const Value.absent(),
   });
   CheckInsCompanion.insert({
@@ -1179,6 +1330,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     this.status = const Value.absent(),
     this.note = const Value.absent(),
     this.difficulty = const Value.absent(),
+    this.valueLogged = const Value.absent(),
     this.completedAt = const Value.absent(),
   }) : habitId = Value(habitId),
        date = Value(date);
@@ -1189,6 +1341,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     Expression<String>? status,
     Expression<String>? note,
     Expression<int>? difficulty,
+    Expression<double>? valueLogged,
     Expression<DateTime>? completedAt,
   }) {
     return RawValuesInsertable({
@@ -1198,6 +1351,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
       if (status != null) 'status': status,
       if (note != null) 'note': note,
       if (difficulty != null) 'difficulty': difficulty,
+      if (valueLogged != null) 'value_logged': valueLogged,
       if (completedAt != null) 'completed_at': completedAt,
     });
   }
@@ -1209,6 +1363,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     Value<String>? status,
     Value<String?>? note,
     Value<int?>? difficulty,
+    Value<double?>? valueLogged,
     Value<DateTime>? completedAt,
   }) {
     return CheckInsCompanion(
@@ -1218,6 +1373,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
       status: status ?? this.status,
       note: note ?? this.note,
       difficulty: difficulty ?? this.difficulty,
+      valueLogged: valueLogged ?? this.valueLogged,
       completedAt: completedAt ?? this.completedAt,
     );
   }
@@ -1243,6 +1399,9 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     if (difficulty.present) {
       map['difficulty'] = Variable<int>(difficulty.value);
     }
+    if (valueLogged.present) {
+      map['value_logged'] = Variable<double>(valueLogged.value);
+    }
     if (completedAt.present) {
       map['completed_at'] = Variable<DateTime>(completedAt.value);
     }
@@ -1258,6 +1417,7 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
           ..write('status: $status, ')
           ..write('note: $note, ')
           ..write('difficulty: $difficulty, ')
+          ..write('valueLogged: $valueLogged, ')
           ..write('completedAt: $completedAt')
           ..write(')'))
         .toString();
@@ -1298,6 +1458,8 @@ typedef $$HabitsTableCreateCompanionBuilder =
       Value<String> scheduleDays,
       Value<int> weeklyTargetDays,
       Value<DateTime> startDate,
+      Value<double?> targetValue,
+      Value<String?> unit,
       Value<String?> reminderTime,
       Value<bool> isReminderEnabled,
       Value<bool> isArchived,
@@ -1315,6 +1477,8 @@ typedef $$HabitsTableUpdateCompanionBuilder =
       Value<String> scheduleDays,
       Value<int> weeklyTargetDays,
       Value<DateTime> startDate,
+      Value<double?> targetValue,
+      Value<String?> unit,
       Value<String?> reminderTime,
       Value<bool> isReminderEnabled,
       Value<bool> isArchived,
@@ -1401,6 +1565,16 @@ class $$HabitsTableFilterComposer
 
   ColumnFilters<DateTime> get startDate => $composableBuilder(
     column: $table.startDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get targetValue => $composableBuilder(
+    column: $table.targetValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unit => $composableBuilder(
+    column: $table.unit,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1509,6 +1683,16 @@ class $$HabitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get targetValue => $composableBuilder(
+    column: $table.targetValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get reminderTime => $composableBuilder(
     column: $table.reminderTime,
     builder: (column) => ColumnOrderings(column),
@@ -1578,6 +1762,14 @@ class $$HabitsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get startDate =>
       $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<double> get targetValue => $composableBuilder(
+    column: $table.targetValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get unit =>
+      $composableBuilder(column: $table.unit, builder: (column) => column);
 
   GeneratedColumn<String> get reminderTime => $composableBuilder(
     column: $table.reminderTime,
@@ -1661,6 +1853,8 @@ class $$HabitsTableTableManager
                 Value<String> scheduleDays = const Value.absent(),
                 Value<int> weeklyTargetDays = const Value.absent(),
                 Value<DateTime> startDate = const Value.absent(),
+                Value<double?> targetValue = const Value.absent(),
+                Value<String?> unit = const Value.absent(),
                 Value<String?> reminderTime = const Value.absent(),
                 Value<bool> isReminderEnabled = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
@@ -1676,6 +1870,8 @@ class $$HabitsTableTableManager
                 scheduleDays: scheduleDays,
                 weeklyTargetDays: weeklyTargetDays,
                 startDate: startDate,
+                targetValue: targetValue,
+                unit: unit,
                 reminderTime: reminderTime,
                 isReminderEnabled: isReminderEnabled,
                 isArchived: isArchived,
@@ -1693,6 +1889,8 @@ class $$HabitsTableTableManager
                 Value<String> scheduleDays = const Value.absent(),
                 Value<int> weeklyTargetDays = const Value.absent(),
                 Value<DateTime> startDate = const Value.absent(),
+                Value<double?> targetValue = const Value.absent(),
+                Value<String?> unit = const Value.absent(),
                 Value<String?> reminderTime = const Value.absent(),
                 Value<bool> isReminderEnabled = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
@@ -1708,6 +1906,8 @@ class $$HabitsTableTableManager
                 scheduleDays: scheduleDays,
                 weeklyTargetDays: weeklyTargetDays,
                 startDate: startDate,
+                targetValue: targetValue,
+                unit: unit,
                 reminderTime: reminderTime,
                 isReminderEnabled: isReminderEnabled,
                 isArchived: isArchived,
@@ -1774,6 +1974,7 @@ typedef $$CheckInsTableCreateCompanionBuilder =
       Value<String> status,
       Value<String?> note,
       Value<int?> difficulty,
+      Value<double?> valueLogged,
       Value<DateTime> completedAt,
     });
 typedef $$CheckInsTableUpdateCompanionBuilder =
@@ -1784,6 +1985,7 @@ typedef $$CheckInsTableUpdateCompanionBuilder =
       Value<String> status,
       Value<String?> note,
       Value<int?> difficulty,
+      Value<double?> valueLogged,
       Value<DateTime> completedAt,
     });
 
@@ -1840,6 +2042,11 @@ class $$CheckInsTableFilterComposer
 
   ColumnFilters<int> get difficulty => $composableBuilder(
     column: $table.difficulty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get valueLogged => $composableBuilder(
+    column: $table.valueLogged,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1906,6 +2113,11 @@ class $$CheckInsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get valueLogged => $composableBuilder(
+    column: $table.valueLogged,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get completedAt => $composableBuilder(
     column: $table.completedAt,
     builder: (column) => ColumnOrderings(column),
@@ -1958,6 +2170,11 @@ class $$CheckInsTableAnnotationComposer
 
   GeneratedColumn<int> get difficulty => $composableBuilder(
     column: $table.difficulty,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get valueLogged => $composableBuilder(
+    column: $table.valueLogged,
     builder: (column) => column,
   );
 
@@ -2024,6 +2241,7 @@ class $$CheckInsTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<int?> difficulty = const Value.absent(),
+                Value<double?> valueLogged = const Value.absent(),
                 Value<DateTime> completedAt = const Value.absent(),
               }) => CheckInsCompanion(
                 id: id,
@@ -2032,6 +2250,7 @@ class $$CheckInsTableTableManager
                 status: status,
                 note: note,
                 difficulty: difficulty,
+                valueLogged: valueLogged,
                 completedAt: completedAt,
               ),
           createCompanionCallback:
@@ -2042,6 +2261,7 @@ class $$CheckInsTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<int?> difficulty = const Value.absent(),
+                Value<double?> valueLogged = const Value.absent(),
                 Value<DateTime> completedAt = const Value.absent(),
               }) => CheckInsCompanion.insert(
                 id: id,
@@ -2050,6 +2270,7 @@ class $$CheckInsTableTableManager
                 status: status,
                 note: note,
                 difficulty: difficulty,
+                valueLogged: valueLogged,
                 completedAt: completedAt,
               ),
           withReferenceMapper: (p0) => p0

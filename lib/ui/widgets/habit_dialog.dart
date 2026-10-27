@@ -12,6 +12,8 @@ class HabitDialog extends StatefulWidget {
   final String? initialScheduleDays;
   final int? initialWeeklyTargetDays;
   final DateTime? initialStartDate;
+  final double? initialTargetValue;
+  final String? initialUnit;
   final String? initialReminderTime;
   final bool? initialIsReminderEnabled;
   final String title;
@@ -28,6 +30,8 @@ class HabitDialog extends StatefulWidget {
     this.initialScheduleDays,
     this.initialWeeklyTargetDays,
     this.initialStartDate,
+    this.initialTargetValue,
+    this.initialUnit,
     this.initialReminderTime,
     this.initialIsReminderEnabled,
     required this.title,
@@ -48,6 +52,8 @@ class HabitDialogResult {
   final String scheduleDays;
   final int weeklyTargetDays;
   final DateTime startDate;
+  final double? targetValue;
+  final String? unit;
   final String? reminderTime;
   final bool isReminderEnabled;
 
@@ -61,6 +67,8 @@ class HabitDialogResult {
     required this.scheduleDays,
     required this.weeklyTargetDays,
     required this.startDate,
+    this.targetValue,
+    this.unit,
     this.reminderTime,
     required this.isReminderEnabled,
   });
@@ -70,11 +78,16 @@ class _HabitDialogState extends State<HabitDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _descController;
   late final TextEditingController _categoryController;
+  late final TextEditingController _targetValueController;
+  late final TextEditingController _unitController;
   final _formKey = GlobalKey<FormState>();
 
   late String _selectedCategory;
   late String _selectedSymbol;
   late int _selectedColor;
+
+  // Numerical Goals
+  bool _hasNumericalGoal = false;
 
   // Scheduling
   late String _scheduleType; // 'daily', 'specific_days', 'weekly_target'
@@ -118,6 +131,16 @@ class _HabitDialogState extends State<HabitDialog> {
     _selectedSymbol = widget.initialSymbol ?? 'check';
     _selectedColor = widget.initialColor ?? HabitColors.palette[0];
 
+    _hasNumericalGoal = widget.initialTargetValue != null && widget.initialTargetValue! > 0;
+    _targetValueController = TextEditingController(
+      text: widget.initialTargetValue != null
+          ? (widget.initialTargetValue! % 1 == 0
+              ? widget.initialTargetValue!.toInt().toString()
+              : widget.initialTargetValue!.toString())
+          : '',
+    );
+    _unitController = TextEditingController(text: widget.initialUnit ?? 'mins');
+
     _scheduleType = widget.initialScheduleType ?? 'daily';
     _selectedDays = (widget.initialScheduleDays ?? '')
         .split(',')
@@ -143,10 +166,11 @@ class _HabitDialogState extends State<HabitDialog> {
       _reminderTimeOfDay = const TimeOfDay(hour: 8, minute: 0);
     }
 
-    // Auto-expand advanced options if editing existing habit with custom schedules/reminders
+    // Auto-expand advanced options if editing existing habit with custom schedules/reminders/goals
     if (widget.initialScheduleType != null &&
         (widget.initialScheduleType != 'daily' ||
             widget.initialIsReminderEnabled == true ||
+            _hasNumericalGoal ||
             (widget.initialDescription != null &&
                 widget.initialDescription!.isNotEmpty))) {
       _isAdvancedExpanded = true;
@@ -158,6 +182,8 @@ class _HabitDialogState extends State<HabitDialog> {
     _nameController.dispose();
     _descController.dispose();
     _categoryController.dispose();
+    _targetValueController.dispose();
+    _unitController.dispose();
     super.dispose();
   }
 
@@ -178,6 +204,13 @@ class _HabitDialogState extends State<HabitDialog> {
         timeStr = '$h:$m';
       }
 
+      final double? targetVal = _hasNumericalGoal
+          ? double.tryParse(_targetValueController.text.trim())
+          : null;
+      final String? unitStr = _hasNumericalGoal && _unitController.text.trim().isNotEmpty
+          ? _unitController.text.trim()
+          : null;
+
       Navigator.of(context, rootNavigator: true).pop(
         HabitDialogResult(
           name: name,
@@ -189,6 +222,8 @@ class _HabitDialogState extends State<HabitDialog> {
           scheduleDays: (_selectedDays.toList()..sort()).join(','),
           weeklyTargetDays: _weeklyTarget,
           startDate: _startDate,
+          targetValue: targetVal,
+          unit: unitStr,
           reminderTime: timeStr,
           isReminderEnabled: _isReminderEnabled,
         ),
@@ -591,6 +626,75 @@ class _HabitDialogState extends State<HabitDialog> {
                         ),
                       ],
                     ),
+
+                    // Numerical Goal Toggle
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.flag_outlined, size: 16),
+                            const SizedBox(width: 6),
+                            const Text('Measurable Target Goal',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13)),
+                          ],
+                        ),
+                        Switch.adaptive(
+                          value: _hasNumericalGoal,
+                          activeTrackColor: primaryColor,
+                          onChanged: (val) {
+                            setState(() => _hasNumericalGoal = val);
+                          },
+                        ),
+                      ],
+                    ),
+                    if (_hasNumericalGoal) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: TextFormField(
+                              controller: _targetValueController,
+                              keyboardType: const TextInputType.numberWithOptions(
+                                  decimal: true),
+                              decoration: InputDecoration(
+                                hintText: 'e.g. 30',
+                                labelText: 'Target Amount',
+                                filled: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 3,
+                            child: TextFormField(
+                              controller: _unitController,
+                              decoration: InputDecoration(
+                                hintText: 'mins, ml, pages',
+                                labelText: 'Unit',
+                                filled: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
 
                     // Reminder Toggle
                     Row(

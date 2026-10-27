@@ -109,6 +109,25 @@ void main() {
       expect(active.length, 1);
       expect(archived.isEmpty, isTrue);
     });
+
+    test('Can track habit with numerical target and log numerical progress', () async {
+      final id = await db.addHabit(
+        'Study Programming',
+        category: 'Learning',
+        targetValue: 45.0,
+        unit: 'mins',
+      );
+
+      final habit = await db.getHabitById(id);
+      expect(habit, isNotNull);
+      expect(habit!.targetValue, 45.0);
+      expect(habit.unit, 'mins');
+
+      await db.toggleCheckIn(id, '2026-10-27', difficulty: 5, valueLogged: 50.0);
+      final checkIn = await db.getCheckInForDate(id, '2026-10-27');
+      expect(checkIn, isNotNull);
+      expect(checkIn!.valueLogged, 50.0);
+    });
   });
 
   group('Check-ins, 1-10 Difficulty Scale, & Retention Tracking', () {
