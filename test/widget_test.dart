@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:willtrack/ui/screens/splash_screen.dart';
 import 'package:willtrack/ui/widgets/daily_progress_card.dart';
 import 'package:willtrack/ui/widgets/difficulty_selector.dart';
 import 'package:willtrack/ui/widgets/empty_state.dart';
@@ -9,6 +10,20 @@ import 'package:willtrack/data/database.dart';
 import 'package:willtrack/providers/habit_provider.dart';
 
 void main() {
+  group('Splash Screen Tests', () {
+    testWidgets('SplashScreen displays logo, title, and tagline', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: SplashScreen(autoNavigate: false),
+        ),
+      );
+
+      expect(find.text('WillTrack'), findsOneWidget);
+      expect(find.text('Master habits, one day at a time'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+  });
+
   group('UI Widgets Tests', () {
     testWidgets('EmptyStateWidget renders CTA button and texts', (tester) async {
       bool addCalled = false;
@@ -120,7 +135,6 @@ void main() {
       expect(find.text('Daily Swimming'), findsOneWidget);
       expect(find.text('Rate effort today:'), findsOneWidget);
 
-      // Tap 4 directly on the habit row
       final diff4Button = find.byKey(const Key('diff_button_1_4'));
       expect(diff4Button, findsOneWidget);
 

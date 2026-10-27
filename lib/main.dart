@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'data/database.dart';
 import 'providers/habit_provider.dart';
-import 'ui/screens/home_screen.dart';
+import 'ui/screens/splash_screen.dart';
 import 'ui/theme.dart';
 
 void main() {
@@ -36,7 +36,7 @@ class WillTrackApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      home: const HomeScreen(),
+      home: const SplashScreen(),
     );
   }
 }
