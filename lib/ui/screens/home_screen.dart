@@ -6,7 +6,6 @@ import '../widgets/daily_progress_card.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/habit_dialog.dart';
 import '../widgets/habit_tile.dart';
-import '../widgets/quick_checkin_dialog.dart';
 import 'habit_detail_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -28,36 +27,6 @@ class HomeScreen extends StatelessWidget {
         category: result.category,
         symbol: result.symbol,
         colorValue: result.colorValue,
-      );
-    }
-  }
-
-  Future<void> _handleHabitToggle(
-    BuildContext context,
-    HabitItem item,
-  ) async {
-    final provider = context.read<HabitProvider>();
-    if (item.isCompletedToday) {
-      // Undo completion
-      await provider.toggleHabitCompletion(item.habit.id);
-    } else {
-      // Show quick check-in dialog with 1-10 difficulty rating
-      final existing = await provider.getTodayCheckIn(item.habit.id);
-      if (!context.mounted) return;
-
-      await showDialog(
-        context: context,
-        builder: (ctx) => QuickCheckInDialog(
-          habit: item.habit,
-          existingCheckIn: existing,
-          onConfirm: ({required int difficulty, String? note}) async {
-            await provider.completeHabitWithDetails(
-              item.habit.id,
-              difficulty: difficulty,
-              note: note,
-            );
-          },
-        ),
       );
     }
   }
@@ -258,7 +227,10 @@ class HomeScreen extends StatelessWidget {
                                 ),
                               );
                             },
-                            onToggle: () => _handleHabitToggle(context, item),
+                            onToggle: () =>
+                                provider.toggleHabitCompletion(item.habit.id),
+                            onSelectDifficulty: (score) =>
+                                provider.markHabitDifficulty(item.habit.id, score),
                             onEdit: () => _showEditHabitDialog(
                                 context, item.habit),
                             onDelete: () => _confirmDeleteHabit(

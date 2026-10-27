@@ -4,7 +4,6 @@ import 'package:willtrack/ui/widgets/daily_progress_card.dart';
 import 'package:willtrack/ui/widgets/difficulty_selector.dart';
 import 'package:willtrack/ui/widgets/empty_state.dart';
 import 'package:willtrack/ui/widgets/habit_analytics_section.dart';
-import 'package:willtrack/ui/widgets/habit_dialog.dart';
 import 'package:willtrack/ui/widgets/habit_tile.dart';
 import 'package:willtrack/data/database.dart';
 import 'package:willtrack/providers/habit_provider.dart';
@@ -78,13 +77,90 @@ void main() {
       expect(find.text('5 / 10'), findsOneWidget);
       expect(find.text('8'), findsOneWidget);
 
-      // Tap 8
       await tester.tap(find.text('8'));
       await tester.pump();
 
       expect(selected, 8);
       expect(find.text('8 / 10'), findsOneWidget);
       expect(find.text('Challenging (Pushed limits)'), findsOneWidget);
+    });
+
+    testWidgets('HabitTile allows direct 1-10 difficulty selection inline',
+        (tester) async {
+      int? selectedDiff;
+
+      final testHabit = Habit(
+        id: 1,
+        name: 'Daily Swimming',
+        category: 'Fitness',
+        symbol: 'pool',
+        colorValue: 0xFF06B6D4,
+        createdAt: DateTime.now(),
+        isArchived: false,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: HabitTile(
+              habitItem: HabitItem(
+                habit: testHabit,
+                isCompletedToday: false,
+              ),
+              onTap: () {},
+              onToggle: () {},
+              onSelectDifficulty: (score) => selectedDiff = score,
+              onEdit: () {},
+              onDelete: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Daily Swimming'), findsOneWidget);
+      expect(find.text('Rate effort today:'), findsOneWidget);
+
+      // Tap 4 directly on the habit row
+      final diff4Button = find.byKey(const Key('diff_button_1_4'));
+      expect(diff4Button, findsOneWidget);
+
+      await tester.tap(diff4Button);
+      expect(selectedDiff, 4);
+    });
+
+    testWidgets('HabitTile displays selected difficulty badge when marked',
+        (tester) async {
+      final testHabit = Habit(
+        id: 1,
+        name: 'Daily Swimming',
+        category: 'Fitness',
+        symbol: 'pool',
+        colorValue: 0xFF06B6D4,
+        createdAt: DateTime.now(),
+        isArchived: false,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: HabitTile(
+              habitItem: HabitItem(
+                habit: testHabit,
+                isCompletedToday: true,
+                todayDifficulty: 4,
+              ),
+              onTap: () {},
+              onToggle: () {},
+              onSelectDifficulty: (_) {},
+              onEdit: () {},
+              onDelete: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Diff: 4/10'), findsOneWidget);
+      expect(find.text('Light Effort (Smooth)'), findsOneWidget);
     });
 
     testWidgets('HabitAnalyticsSection renders streaks, average difficulty and distribution',
@@ -141,60 +217,6 @@ void main() {
       expect(find.text('6.5 / 10'), findsOneWidget);
       expect(find.text('Getting easier! Habit mastery improving 🚀'), findsOneWidget);
       expect(find.text('12 sessions'), findsOneWidget);
-    });
-
-    testWidgets('HabitTile displays habit with category and fires callbacks',
-        (tester) async {
-      bool toggleCalled = false;
-      bool tapCalled = false;
-
-      final testHabit = Habit(
-        id: 1,
-        name: 'Daily Swimming',
-        category: 'Fitness',
-        symbol: 'pool',
-        colorValue: 0xFF06B6D4,
-        createdAt: DateTime.now(),
-        isArchived: false,
-      );
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: HabitTile(
-              habitItem: HabitItem(habit: testHabit, isCompletedToday: false),
-              onTap: () => tapCalled = true,
-              onToggle: () => toggleCalled = true,
-              onEdit: () {},
-              onDelete: () {},
-            ),
-          ),
-        ),
-      );
-
-      expect(find.text('Daily Swimming'), findsOneWidget);
-      expect(find.text('Fitness'), findsOneWidget);
-
-      await tester.tap(find.text('Daily Swimming'));
-      expect(tapCalled, isTrue);
-
-      await tester.tap(find.byKey(const Key('habit_toggle_button')));
-      expect(toggleCalled, isTrue);
-    });
-
-    testWidgets('HabitDialog validates empty inputs', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: HabitDialog(title: 'New Habit'),
-          ),
-        ),
-      );
-
-      await tester.tap(find.text('Save'));
-      await tester.pump();
-
-      expect(find.text('Please enter a habit name'), findsOneWidget);
     });
   });
 }

@@ -6,10 +6,14 @@ import '../data/database.dart';
 class HabitItem {
   final Habit habit;
   final bool isCompletedToday;
+  final int? todayDifficulty;
+  final String? todayNote;
 
   HabitItem({
     required this.habit,
     required this.isCompletedToday,
+    this.todayDifficulty,
+    this.todayNote,
   });
 }
 
@@ -19,7 +23,7 @@ class HabitStats {
   final int totalCompletions;
   final double averageDifficulty;
   final String trendMessage;
-  final Map<String, int> difficultyDistribution; // 'Easy', 'Moderate', 'Hard'
+  final Map<String, int> difficultyDistribution;
   final List<CheckIn> recentSessions;
 
   HabitStats({
@@ -39,7 +43,7 @@ class HabitProvider extends ChangeNotifier {
   String _selectedCategory = 'All';
 
   List<Habit> _habits = [];
-  List<int> _todayCompletedHabitIds = [];
+  Map<int, CheckIn> _todayCheckInsMap = {};
 
   StreamSubscription? _habitsSubscription;
   StreamSubscription? _checkInsSubscription;
@@ -75,15 +79,26 @@ class HabitProvider extends ChangeNotifier {
     });
 
     _checkInsSubscription =
-        database.watchCompletedHabitIdsForDate(todayString).listen((completedIds) {
-      _todayCompletedHabitIds = completedIds;
+        (database.select(database.checkIns)..where((tbl) => tbl.date.equals(todayString)))
+            .watch()
+            .listen((checkIns) {
+      _todayCheckInsMap = {
+        for (var c in checkIns)
+          if (c.status == 'completed') c.habitId: c,
+      };
       notifyListeners();
     });
   }
 
   Future<void> refresh() async {
     _habits = await database.getActiveHabits();
-    _todayCompletedHabitIds = await database.getCompletedHabitIdsForDate(todayString);
+    final todayList = await (database.select(database.checkIns)
+          ..where((tbl) => tbl.date.equals(todayString)))
+        .get();
+    _todayCheckInsMap = {
+      for (var c in todayList)
+        if (c.status == 'completed') c.habitId: c,
+    };
     notifyListeners();
   }
 
@@ -95,11 +110,13 @@ class HabitProvider extends ChangeNotifier {
   }
 
   List<HabitItem> get allHabitItems {
-    final completedSet = _todayCompletedHabitIds.toSet();
     return _habits.map((habit) {
+      final checkIn = _todayCheckInsMap[habit.id];
       return HabitItem(
         habit: habit,
-        isCompletedToday: completedSet.contains(habit.id),
+        isCompletedToday: checkIn != null,
+        todayDifficulty: checkIn?.difficulty,
+        todayNote: checkIn?.note,
       );
     }).toList();
   }
@@ -114,10 +131,7 @@ class HabitProvider extends ChangeNotifier {
 
   int get totalCount => _habits.length;
 
-  int get completedCount {
-    final habitIdSet = _habits.map((h) => h.id).toSet();
-    return _todayCompletedHabitIds.where((id) => habitIdSet.contains(id)).length;
-  }
+  int get completedCount => _todayCheckInsMap.length;
 
   double get progressPercentage {
     if (totalCount == 0) return 0.0;
@@ -172,6 +186,16 @@ class HabitProvider extends ChangeNotifier {
     await refresh();
   }
 
+  Future<void> markHabitDifficulty(int habitId, int difficulty) async {
+    await database.setCheckInStatusAndNote(
+      habitId,
+      todayString,
+      status: 'completed',
+      difficulty: difficulty,
+    );
+    await refresh();
+  }
+
   Future<void> completeHabitWithDetails(
     int habitId, {
     required int difficulty,
@@ -212,12 +236,11 @@ class HabitProvider extends ChangeNotifier {
     await refresh();
   }
 
-  /// Analytics & Progress Computation
   HabitStats computeHabitStats(List<CheckIn> history) {
     final completed = history
         .where((c) => c.status == 'completed')
         .toList()
-      ..sort((a, b) => b.date.compareTo(a.date)); // Newest first
+      ..sort((a, b) => b.date.compareTo(a.date));
 
     if (completed.isEmpty) {
       return HabitStats(
@@ -226,14 +249,12 @@ class HabitProvider extends ChangeNotifier {
         totalCompletions: 0,
         averageDifficulty: 0.0,
         trendMessage: 'No completed sessions logged yet.',
-        difficultyDistribution: {'Easy': 0, 'Moderate': 0, 'Hard': 0},
+        difficultyDistribution: {'Easy (1-3)': 0, 'Moderate (4-7)': 0, 'Hard (8-10)': 0},
         recentSessions: [],
       );
     }
 
     final total = completed.length;
-
-    // Difficulty metrics
     final ratedSessions = completed.where((c) => c.difficulty != null).toList();
     double avgDiff = 0.0;
     int easyCount = 0;
@@ -256,7 +277,6 @@ class HabitProvider extends ChangeNotifier {
       }
     }
 
-    // Trend calculation: recent vs older
     String trend = 'Baseline establishing';
     if (ratedSessions.length >= 4) {
       final recent = ratedSessions.take(3).map((e) => e.difficulty ?? 5).reduce((a, b) => a + b) / 3;
@@ -271,7 +291,6 @@ class HabitProvider extends ChangeNotifier {
       }
     }
 
-    // Streak Calculation
     final dateSet = completed.map((c) => c.date).toSet();
     final now = DateTime.now();
     final todayFormatted = DateFormat('yyyy-MM-dd').format(now);
@@ -297,7 +316,6 @@ class HabitProvider extends ChangeNotifier {
       }
     }
 
-    // Longest streak
     final sortedAsc = completed.map((c) => DateFormat('yyyy-MM-dd').parse(c.date)).toList()
       ..sort();
     int longest = 0;
