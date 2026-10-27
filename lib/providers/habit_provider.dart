@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/database.dart';
+import '../models/achievement_model.dart';
 import '../models/habit_analytics.dart';
+import '../models/weekly_review_model.dart';
 import '../services/notification_service.dart';
 
 class HabitItem {
@@ -12,6 +14,9 @@ class HabitItem {
   final String? todayNote;
   final double? todayValueLogged;
   final bool isDueToday;
+  final String? stackedHabitName;
+  final bool isStackAnchorCompleted;
+  final String? linkedGoalTitle;
 
   HabitItem({
     required this.habit,
@@ -20,7 +25,19 @@ class HabitItem {
     this.todayNote,
     this.todayValueLogged,
     this.isDueToday = true,
+    this.stackedHabitName,
+    this.isStackAnchorCompleted = false,
+    this.linkedGoalTitle,
   });
+
+  String get habitType => habit.habitType;
+  String get routine => habit.routine;
+  bool get isBoolean => habit.habitType == 'boolean';
+  bool get isQuantity => habit.habitType == 'quantity';
+  bool get isDuration => habit.habitType == 'duration';
+  bool get isStacked =>
+      habit.stackedHabitId != null ||
+      (habit.stackTrigger != null && habit.stackTrigger!.isNotEmpty);
 }
 
 class HabitStats {
@@ -55,14 +72,22 @@ class HabitProvider extends ChangeNotifier {
   final AppDatabase database;
   ThemeMode _themeMode = ThemeMode.system;
   String _selectedCategory = 'All';
+  String _selectedRoutine = 'All';
+  bool _groupByRoutine = false;
   bool _areNotificationsEnabled = true;
 
   List<Habit> _habits = [];
   List<Habit> _archivedHabits = [];
+  List<Goal> _goals = [];
+  List<AchievementUnlock> _unlockedBadges = [];
   Map<int, CheckIn> _todayCheckInsMap = {};
+
+  String? _latestUnlockedAchievement;
 
   StreamSubscription? _habitsSubscription;
   StreamSubscription? _archivedSubscription;
+  StreamSubscription? _goalsSubscription;
+  StreamSubscription? _achievementsSubscription;
   StreamSubscription? _checkInsSubscription;
 
   HabitProvider({required this.database}) {
@@ -72,8 +97,19 @@ class HabitProvider extends ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
   bool get isDarkMode => _themeMode == ThemeMode.dark;
   String get selectedCategory => _selectedCategory;
+  String get selectedRoutine => _selectedRoutine;
+  bool get groupByRoutine => _groupByRoutine;
   bool get areNotificationsEnabled => _areNotificationsEnabled;
   List<Habit> get archivedHabits => _archivedHabits;
+  List<Goal> get goals => _goals;
+  List<AchievementUnlock> get unlockedBadges => _unlockedBadges;
+  int get unlockedAchievementsCount => _unlockedBadges.length;
+  String? get latestUnlockedAchievement => _latestUnlockedAchievement;
+
+  void clearLatestAchievement() {
+    _latestUnlockedAchievement = null;
+    notifyListeners();
+  }
 
   void toggleTheme() {
     if (_themeMode == ThemeMode.dark) {
@@ -81,6 +117,11 @@ class HabitProvider extends ChangeNotifier {
     } else {
       _themeMode = ThemeMode.dark;
     }
+    notifyListeners();
+  }
+
+  void toggleGroupByRoutine() {
+    _groupByRoutine = !_groupByRoutine;
     notifyListeners();
   }
 
@@ -103,16 +144,32 @@ class HabitProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setSelectedRoutine(String routine) {
+    _selectedRoutine = routine;
+    notifyListeners();
+  }
+
   String get todayString => DateFormat('yyyy-MM-dd').format(DateTime.now());
 
   void _initStreams() {
     _habitsSubscription = database.watchActiveHabits().listen((habits) {
       _habits = habits;
+      _checkAchievements();
       notifyListeners();
     });
 
     _archivedSubscription = database.watchArchivedHabits().listen((archived) {
       _archivedHabits = archived;
+      notifyListeners();
+    });
+
+    _goalsSubscription = database.watchGoals().listen((goals) {
+      _goals = goals;
+      notifyListeners();
+    });
+
+    _achievementsSubscription = database.watchUnlockedBadges().listen((badges) {
+      _unlockedBadges = badges;
       notifyListeners();
     });
 
@@ -124,6 +181,7 @@ class HabitProvider extends ChangeNotifier {
         for (var c in checkIns)
           if (c.status == 'completed') c.habitId: c,
       };
+      _checkAchievements();
       notifyListeners();
     });
   }
@@ -131,6 +189,8 @@ class HabitProvider extends ChangeNotifier {
   Future<void> refresh() async {
     _habits = await database.getActiveHabits();
     _archivedHabits = await database.getArchivedHabits();
+    _goals = await database.getActiveGoals();
+    _unlockedBadges = await database.getUnlockedBadges();
     final todayList = await (database.select(database.checkIns)
           ..where((tbl) => tbl.date.equals(todayString)))
         .get();
@@ -138,6 +198,7 @@ class HabitProvider extends ChangeNotifier {
       for (var c in todayList)
         if (c.status == 'completed') c.habitId: c,
     };
+    await _checkAchievements();
     notifyListeners();
   }
 
@@ -154,6 +215,18 @@ class HabitProvider extends ChangeNotifier {
     final existingFromHabits = _habits.map((h) => h.category).toSet();
     final combined = {...defaultCategories, ...existingFromHabits}.toList();
     return combined;
+  }
+
+  List<String> get routines => ['All', 'Morning', 'Afternoon', 'Evening', 'Anytime'];
+
+  List<Achievement> get achievements {
+    final unlockedMap = {
+      for (var u in _unlockedBadges) u.badgeKey: u.unlockedAt,
+    };
+    return AchievementCatalog.all.map((catalogItem) {
+      final unlockedAt = unlockedMap[catalogItem.key];
+      return catalogItem.copyWith(unlockedAt: unlockedAt);
+    }).toList();
   }
 
   bool isHabitDueOn(Habit habit, DateTime date) {
@@ -184,9 +257,24 @@ class HabitProvider extends ChangeNotifier {
 
   List<HabitItem> get allHabitItems {
     final now = DateTime.now();
+    final habitMap = {for (var h in _habits) h.id: h};
+    final goalMap = {for (var g in _goals) g.id: g};
+
     return _habits.map((habit) {
       final checkIn = _todayCheckInsMap[habit.id];
       final isDue = isHabitDueOn(habit, now);
+
+      String? parentName;
+      bool isParentDone = false;
+      if (habit.stackedHabitId != null) {
+        parentName = habitMap[habit.stackedHabitId]?.name;
+        isParentDone = _todayCheckInsMap.containsKey(habit.stackedHabitId);
+      }
+
+      String? goalTitle;
+      if (habit.goalId != null) {
+        goalTitle = goalMap[habit.goalId]?.title;
+      }
 
       return HabitItem(
         habit: habit,
@@ -195,19 +283,29 @@ class HabitProvider extends ChangeNotifier {
         todayNote: checkIn?.note,
         todayValueLogged: checkIn?.valueLogged,
         isDueToday: isDue,
+        stackedHabitName: parentName,
+        isStackAnchorCompleted: isParentDone,
+        linkedGoalTitle: goalTitle,
       );
     }).toList();
   }
 
-  /// Habits filtered by category and due today
+  /// Habits filtered by category and routine and due today
   List<HabitItem> get habitItems {
     final all = allHabitItems;
     var filtered = all;
 
     if (_selectedCategory != 'All') {
-      filtered = all
+      filtered = filtered
           .where((item) =>
               item.habit.category.toLowerCase() == _selectedCategory.toLowerCase())
+          .toList();
+    }
+
+    if (_selectedRoutine != 'All') {
+      filtered = filtered
+          .where((item) =>
+              item.habit.routine.toLowerCase() == _selectedRoutine.toLowerCase())
           .toList();
     }
 
@@ -235,6 +333,11 @@ class HabitProvider extends ChangeNotifier {
     String category = 'General',
     String symbol = 'check',
     int colorValue = 0xFF10B981,
+    String habitType = 'boolean',
+    String routine = 'anytime',
+    int? stackedHabitId,
+    String? stackTrigger,
+    int? goalId,
     String scheduleType = 'daily',
     String scheduleDays = '',
     int weeklyTargetDays = 7,
@@ -251,6 +354,11 @@ class HabitProvider extends ChangeNotifier {
       category: category,
       symbol: symbol,
       colorValue: colorValue,
+      habitType: habitType,
+      routine: routine,
+      stackedHabitId: stackedHabitId,
+      stackTrigger: stackTrigger,
+      goalId: goalId,
       scheduleType: scheduleType,
       scheduleDays: scheduleDays,
       weeklyTargetDays: weeklyTargetDays,
@@ -277,6 +385,11 @@ class HabitProvider extends ChangeNotifier {
     required String category,
     required String symbol,
     required int colorValue,
+    String habitType = 'boolean',
+    String routine = 'anytime',
+    int? stackedHabitId,
+    String? stackTrigger,
+    int? goalId,
     String scheduleType = 'daily',
     String scheduleDays = '',
     int weeklyTargetDays = 7,
@@ -294,6 +407,11 @@ class HabitProvider extends ChangeNotifier {
       category: category,
       symbol: symbol,
       colorValue: colorValue,
+      habitType: habitType,
+      routine: routine,
+      stackedHabitId: stackedHabitId,
+      stackTrigger: stackTrigger,
+      goalId: goalId,
       scheduleType: scheduleType,
       scheduleDays: scheduleDays,
       weeklyTargetDays: weeklyTargetDays,
@@ -350,6 +468,63 @@ class HabitProvider extends ChangeNotifier {
     await refresh();
   }
 
+  Future<void> logHabitQuantity(int habitId, double increment) async {
+    final existing = await database.getCheckInForDate(habitId, todayString);
+    final currentVal = existing?.valueLogged ?? 0.0;
+    final newVal = (currentVal + increment).clamp(0.0, 999999.0);
+
+    if (newVal == 0.0 && existing != null) {
+      await database.setCheckInStatusAndNote(
+        habitId,
+        todayString,
+        status: 'none',
+      );
+    } else {
+      await database.setCheckInStatusAndNote(
+        habitId,
+        todayString,
+        status: 'completed',
+        difficulty: existing?.difficulty ?? 5,
+        note: existing?.note,
+        valueLogged: newVal,
+      );
+    }
+    await refresh();
+  }
+
+  Future<void> logHabitDuration(int habitId, double minutes) async {
+    final existing = await database.getCheckInForDate(habitId, todayString);
+    final currentVal = existing?.valueLogged ?? 0.0;
+    final newVal = (currentVal + minutes).clamp(0.0, 1440.0);
+
+    await database.setCheckInStatusAndNote(
+      habitId,
+      todayString,
+      status: 'completed',
+      difficulty: existing?.difficulty ?? 5,
+      note: existing?.note,
+      valueLogged: newVal,
+    );
+    await refresh();
+  }
+
+  Future<void> attachNoteToCheckIn(
+    int habitId,
+    String dateStr,
+    String note,
+  ) async {
+    final existing = await database.getCheckInForDate(habitId, dateStr);
+    await database.setCheckInStatusAndNote(
+      habitId,
+      dateStr,
+      status: existing?.status ?? 'completed',
+      difficulty: existing?.difficulty ?? 5,
+      note: note.trim().isEmpty ? null : note.trim(),
+      valueLogged: existing?.valueLogged,
+    );
+    await refresh();
+  }
+
   Future<void> markHabitDifficulty(
     int habitId,
     int difficulty, {
@@ -361,6 +536,7 @@ class HabitProvider extends ChangeNotifier {
       todayString,
       status: 'completed',
       difficulty: difficulty,
+      note: existing?.note,
       valueLogged: valueLogged ?? existing?.valueLogged,
     );
     await refresh();
@@ -410,13 +586,146 @@ class HabitProvider extends ChangeNotifier {
     await refresh();
   }
 
+  // Goals CRUD
+  Future<int> addGoal(
+    String title, {
+    String? description,
+    String category = 'General',
+    String symbol = 'target',
+    int colorValue = 0xFF10B981,
+    DateTime? targetDate,
+  }) async {
+    final id = await database.addGoal(
+      title,
+      description: description,
+      category: category,
+      symbol: symbol,
+      colorValue: colorValue,
+      targetDate: targetDate,
+    );
+    await refresh();
+    return id;
+  }
+
+  Future<void> editGoal(
+    int id, {
+    required String title,
+    String? description,
+    required String category,
+    required String symbol,
+    required int colorValue,
+    DateTime? targetDate,
+  }) async {
+    await database.updateGoalDetails(
+      id,
+      title: title,
+      description: description,
+      category: category,
+      symbol: symbol,
+      colorValue: colorValue,
+      targetDate: targetDate,
+    );
+    await refresh();
+  }
+
+  Future<void> archiveGoal(int id) async {
+    await database.archiveGoal(id);
+    await refresh();
+  }
+
+  Future<void> deleteGoal(int id) async {
+    await database.deleteGoal(id);
+    await refresh();
+  }
+
+  // Achievements Evaluator
+  Future<void> _checkAchievements() async {
+    final allCheckIns = await database.select(database.checkIns).get();
+    final completedCheckIns = allCheckIns.where((c) => c.status == 'completed').toList();
+
+    Future<void> tryUnlock(String key) async {
+      final unlocked = await database.unlockBadge(key);
+      if (unlocked) {
+        final item = AchievementCatalog.all.firstWhere(
+          (a) => a.key == key,
+          orElse: () => AchievementCatalog.all.first,
+        );
+        _latestUnlockedAchievement = item.title;
+      }
+    }
+
+    if (completedCheckIns.isNotEmpty) {
+      await tryUnlock('first_step');
+    }
+
+    if (completedCheckIns.length >= 100) {
+      await tryUnlock('century_100');
+    }
+
+    // Check goal connection
+    final hasGoalAttached = _habits.any((h) => h.goalId != null);
+    if (hasGoalAttached) {
+      await tryUnlock('goal_setter');
+    }
+
+    // Check perfect day
+    if (totalCount > 0 && completedCount == totalCount) {
+      await tryUnlock('perfect_day');
+    }
+
+    // Check streaks and target completions
+    int maxStreakFound = 0;
+    int targetHitsCount = 0;
+
+    for (final habit in _habits) {
+      final habitHistory = completedCheckIns.where((c) => c.habitId == habit.id).toList();
+      final stats = computeHabitStats(habit, habitHistory);
+      if (stats.longestStreak > maxStreakFound) {
+        maxStreakFound = stats.longestStreak;
+      }
+      if (stats.currentStreak > maxStreakFound) {
+        maxStreakFound = stats.currentStreak;
+      }
+
+      if (habit.targetValue != null && habit.targetValue! > 0) {
+        final hits = habitHistory.where((c) => (c.valueLogged ?? 0) >= habit.targetValue!).length;
+        targetHitsCount += hits;
+      }
+
+      // Check stacking completion
+      if (habit.stackedHabitId != null) {
+        final anchorCheck = _todayCheckInsMap.containsKey(habit.stackedHabitId);
+        final thisCheck = _todayCheckInsMap.containsKey(habit.id);
+        if (anchorCheck && thisCheck) {
+          await tryUnlock('habit_stacker');
+        }
+      }
+
+      // Check early bird / night owl
+      final todayCheck = _todayCheckInsMap[habit.id];
+      if (todayCheck != null) {
+        final completedHour = todayCheck.completedAt.hour;
+        if (habit.routine == 'morning' && completedHour < 9) {
+          await tryUnlock('early_bird');
+        }
+        if (habit.routine == 'evening' && completedHour >= 20) {
+          await tryUnlock('night_owl');
+        }
+      }
+    }
+
+    if (maxStreakFound >= 3) await tryUnlock('streak_3');
+    if (maxStreakFound >= 7) await tryUnlock('streak_7');
+    if (maxStreakFound >= 30) await tryUnlock('streak_30');
+    if (targetHitsCount >= 5) await tryUnlock('target_crusher');
+  }
+
   WeeklyPerformance computeWeeklyPerformance(
     Habit habit,
     List<CheckIn> history, [
     DateTime? referenceDate,
   ]) {
     final ref = referenceDate ?? DateTime.now();
-    // In Dart weekday: 1 = Mon ... 7 = Sun
     final monday = DateTime(ref.year, ref.month, ref.day)
         .subtract(Duration(days: ref.weekday - 1));
     final sunday = monday.add(const Duration(days: 6));
@@ -499,7 +808,6 @@ class HabitProvider extends ChangeNotifier {
       }
     }
 
-    // Previous month rate
     final prevMonthFirst = DateTime(currentMonth.year, currentMonth.month - 1, 1);
     final prevMonthLast = DateTime(currentMonth.year, currentMonth.month, 0);
     int prevScheduled = 0;
@@ -529,6 +837,89 @@ class HabitProvider extends ChangeNotifier {
     );
   }
 
+  Future<WeeklyReviewData> computeOverallWeeklyReview([DateTime? referenceDate]) async {
+    final ref = referenceDate ?? DateTime.now();
+    final monday = DateTime(ref.year, ref.month, ref.day)
+        .subtract(Duration(days: ref.weekday - 1));
+    final sunday = monday.add(const Duration(days: 6));
+    final prevMonday = monday.subtract(const Duration(days: 7));
+
+    final allCheckIns = await database.select(database.checkIns).get();
+
+    int totalScheduledThisWeek = 0;
+    int totalCompletedThisWeek = 0;
+    int totalScheduledPrevWeek = 0;
+    int totalCompletedPrevWeek = 0;
+
+    double totalDuration = 0.0;
+    double totalQuantity = 0.0;
+
+    final List<HabitReviewItem> reviewItems = [];
+
+    for (final habit in _habits) {
+      final habitHistory = allCheckIns.where((c) => c.habitId == habit.id).toList();
+      final thisWeek = computeWeeklyPerformance(habit, habitHistory, monday);
+      final prevWeek = computeWeeklyPerformance(habit, habitHistory, prevMonday);
+
+      totalScheduledThisWeek += thisWeek.scheduledDaysCount;
+      totalCompletedThisWeek += thisWeek.completedDaysCount;
+
+      totalScheduledPrevWeek += prevWeek.scheduledDaysCount;
+      totalCompletedPrevWeek += prevWeek.completedDaysCount;
+
+      for (final day in thisWeek.days) {
+        if (day.valueLogged != null) {
+          if (habit.habitType == 'duration') {
+            totalDuration += day.valueLogged!;
+          } else if (habit.habitType == 'quantity') {
+            totalQuantity += day.valueLogged!;
+          }
+        }
+      }
+
+      reviewItems.add(
+        HabitReviewItem(
+          habitId: habit.id,
+          habitName: habit.name,
+          category: habit.category,
+          symbol: habit.symbol,
+          colorValue: habit.colorValue,
+          scheduledDays: thisWeek.scheduledDaysCount,
+          completedDays: thisWeek.completedDaysCount,
+          completionRate: thisWeek.completionRate,
+        ),
+      );
+    }
+
+    reviewItems.sort((a, b) => b.completionRate.compareTo(a.completionRate));
+    final topHabits = reviewItems.where((h) => h.completionRate >= 0.7).take(5).toList();
+    final missedHabits = reviewItems
+        .where((h) => h.scheduledDays > 0 && h.completionRate < 0.7)
+        .toList()
+      ..sort((a, b) => a.completionRate.compareTo(b.completionRate));
+
+    final currentRate = totalScheduledThisWeek > 0
+        ? (totalCompletedThisWeek / totalScheduledThisWeek).clamp(0.0, 1.0)
+        : 0.0;
+    final prevRate = totalScheduledPrevWeek > 0
+        ? (totalCompletedPrevWeek / totalScheduledPrevWeek).clamp(0.0, 1.0)
+        : null;
+
+    return WeeklyReviewData(
+      weekStart: monday,
+      weekEnd: sunday,
+      totalScheduled: totalScheduledThisWeek,
+      totalCompleted: totalCompletedThisWeek,
+      completionRate: currentRate,
+      previousWeekRate: prevRate,
+      topHabits: topHabits,
+      missedHabits: missedHabits,
+      totalDurationMinutes: totalDuration,
+      totalQuantityLogged: totalQuantity,
+      activeHabitsCount: _habits.length,
+    );
+  }
+
   HabitStats computeHabitStats(Habit habit, List<CheckIn> history) {
     final completed = history
         .where((c) => c.status == 'completed')
@@ -538,7 +929,6 @@ class HabitProvider extends ChangeNotifier {
     final weeklyPerf = computeWeeklyPerformance(habit, history);
     final monthlyPerf = computeMonthlyPerformance(habit, history);
 
-    // Numerical Goal Progress if habit has targetValue
     NumericalGoalProgress? numericalProgress;
     if (habit.targetValue != null && habit.targetValue! > 0) {
       final loggedValues = completed
@@ -623,16 +1013,13 @@ class HabitProvider extends ChangeNotifier {
       }
     }
 
-    // Schedule-Aware Streak Calculation
     final checkInDateSet = completed.map((c) => c.date).toSet();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    // Current Streak (skips non-scheduled days without breaking the streak)
     int currentStreak = 0;
     DateTime checkDate = today;
 
-    // If today is scheduled and not completed yet, start check from yesterday
     final todayDue = isHabitDueOn(habit, today);
     final todayStr = DateFormat('yyyy-MM-dd').format(today);
     if (todayDue && !checkInDateSet.contains(todayStr)) {
@@ -647,23 +1034,19 @@ class HabitProvider extends ChangeNotifier {
         if (checkInDateSet.contains(dStr)) {
           currentStreak++;
         } else {
-          // Missed a scheduled active day -> streak ends
           break;
         }
       }
       checkDate = checkDate.subtract(const Duration(days: 1));
-      // Don't go before habit start date
       final startDay = DateTime(habit.startDate.year, habit.startDate.month, habit.startDate.day);
       if (checkDate.isBefore(startDay)) {
         break;
       }
     }
 
-    // Longest Streak (schedule-aware)
     int longest = 0;
     int rollingStreak = 0;
 
-    // Scan backwards from today to habit start date or oldest check-in
     final startDay = DateTime(habit.startDate.year, habit.startDate.month, habit.startDate.day);
     DateTime scanDate = today;
     int scheduledDaysTotal = 0;
@@ -686,7 +1069,6 @@ class HabitProvider extends ChangeNotifier {
 
     if (currentStreak > longest) longest = currentStreak;
 
-    // Overall completion rate based on scheduled days to date
     final completionRate = scheduledDaysTotal > 0
         ? (total / scheduledDaysTotal).clamp(0.0, 1.0)
         : 1.0;
@@ -714,6 +1096,8 @@ class HabitProvider extends ChangeNotifier {
   void dispose() {
     _habitsSubscription?.cancel();
     _archivedSubscription?.cancel();
+    _goalsSubscription?.cancel();
+    _achievementsSubscription?.cancel();
     _checkInsSubscription?.cancel();
     super.dispose();
   }

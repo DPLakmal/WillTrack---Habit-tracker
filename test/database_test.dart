@@ -204,4 +204,92 @@ void main() {
       expect(completedIds.isEmpty, isTrue);
     });
   });
+
+  group('Advanced Habit Tracking: Types, Routines, Stacks, Goals & Achievements', () {
+    test('Can create Quantity and Duration habits with routines', () async {
+      final qId = await db.addHabit(
+        'Drink Water',
+        category: 'Health',
+        habitType: 'quantity',
+        routine: 'morning',
+        targetValue: 8.0,
+        unit: 'glasses',
+      );
+      final dId = await db.addHabit(
+        'Evening Reading',
+        category: 'Learning',
+        habitType: 'duration',
+        routine: 'evening',
+        targetValue: 30.0,
+        unit: 'mins',
+      );
+
+      final qHabit = await db.getHabitById(qId);
+      expect(qHabit?.habitType, 'quantity');
+      expect(qHabit?.routine, 'morning');
+      expect(qHabit?.targetValue, 8.0);
+      expect(qHabit?.unit, 'glasses');
+
+      final dHabit = await db.getHabitById(dId);
+      expect(dHabit?.habitType, 'duration');
+      expect(dHabit?.routine, 'evening');
+      expect(dHabit?.targetValue, 30.0);
+      expect(dHabit?.unit, 'mins');
+    });
+
+    test('Can link habits with Habit Stacking sequence', () async {
+      final anchorId = await db.addHabit(
+        'Morning Coffee',
+        routine: 'morning',
+      );
+      final stackedId = await db.addHabit(
+        'Read 10 Pages',
+        routine: 'morning',
+        stackedHabitId: anchorId,
+        stackTrigger: 'After morning coffee',
+      );
+
+      final stackedHabit = await db.getHabitById(stackedId);
+      expect(stackedHabit?.stackedHabitId, anchorId);
+      expect(stackedHabit?.stackTrigger, 'After morning coffee');
+    });
+
+    test('Can manage Goals and link habits to Goals', () async {
+      final goalId = await db.addGoal(
+        'Run 10K Marathon',
+        category: 'Fitness',
+        description: 'Complete 10K by end of year',
+      );
+
+      final goals = await db.getActiveGoals();
+      expect(goals.length, 1);
+      expect(goals.first.title, 'Run 10K Marathon');
+
+      final habitId = await db.addHabit(
+        '5km Morning Run',
+        category: 'Fitness',
+        goalId: goalId,
+      );
+
+      final habit = await db.getHabitById(habitId);
+      expect(habit?.goalId, goalId);
+
+      await db.deleteGoal(goalId);
+      final afterDelete = await db.getActiveGoals();
+      expect(afterDelete.isEmpty, isTrue);
+    });
+
+    test('Can record and query Achievement unlocks', () async {
+      final unlocked1 = await db.unlockBadge('first_step');
+      expect(unlocked1, isTrue);
+
+      // Duplicate unlock should return false
+      final unlockedAgain = await db.unlockBadge('first_step');
+      expect(unlockedAgain, isFalse);
+
+      final badges = await db.getUnlockedBadges();
+      expect(badges.length, 1);
+      expect(badges.first.badgeKey, 'first_step');
+    });
+  });
 }

@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:willtrack/models/achievement_model.dart';
 import 'package:willtrack/models/habit_analytics.dart';
+import 'package:willtrack/models/weekly_review_model.dart';
 import 'package:willtrack/ui/screens/splash_screen.dart';
+import 'package:willtrack/ui/widgets/achievements_sheet.dart';
 import 'package:willtrack/ui/widgets/daily_progress_card.dart';
 import 'package:willtrack/ui/widgets/difficulty_selector.dart';
 import 'package:willtrack/ui/widgets/empty_state.dart';
+import 'package:willtrack/ui/widgets/goals_sheet.dart';
 import 'package:willtrack/ui/widgets/habit_analytics_section.dart';
 import 'package:willtrack/ui/widgets/habit_tile.dart';
+import 'package:willtrack/ui/widgets/quantity_duration_stepper.dart';
+import 'package:willtrack/ui/widgets/weekly_review_sheet.dart';
 import 'package:willtrack/data/database.dart';
 import 'package:willtrack/providers/habit_provider.dart';
 
@@ -111,6 +117,8 @@ void main() {
         category: 'Fitness',
         symbol: 'pool',
         colorValue: 0xFF06B6D4,
+        habitType: 'boolean',
+        routine: 'anytime',
         createdAt: DateTime.now(),
         isArchived: false,
         scheduleType: 'daily',
@@ -157,6 +165,8 @@ void main() {
         category: 'Fitness',
         symbol: 'pool',
         colorValue: 0xFF06B6D4,
+        habitType: 'boolean',
+        routine: 'anytime',
         createdAt: DateTime.now(),
         isArchived: false,
         scheduleType: 'daily',
@@ -198,6 +208,8 @@ void main() {
         category: 'Fitness',
         symbol: 'pool',
         colorValue: 0xFF06B6D4,
+        habitType: 'boolean',
+        routine: 'anytime',
         createdAt: DateTime.now(),
         isArchived: false,
         scheduleType: 'daily',
@@ -265,6 +277,118 @@ void main() {
       expect(find.text('Getting easier! Habit mastery improving 🚀'), findsOneWidget);
       expect(find.text('12'), findsOneWidget);
       expect(find.text('Moderate (4-7)'), findsOneWidget);
+    });
+
+    testWidgets('QuantityStepper renders value, unit, and triggers callbacks',
+        (tester) async {
+      double logged = 3.0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: QuantityStepper(
+              currentLogged: logged,
+              targetValue: 8.0,
+              unit: 'glasses',
+              activeColor: Colors.blue,
+              onIncrement: (inc) => logged += inc,
+              onSetValue: (val) => logged = val,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('3'), findsOneWidget);
+      expect(find.text(' / 8'), findsOneWidget);
+      expect(find.text('glasses'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.add));
+      expect(logged, 4.0);
+    });
+
+    testWidgets('AchievementsSheet renders achievement catalog with unlocked count',
+        (tester) async {
+      final sampleAchievements = [
+        const Achievement(
+          key: 'first_step',
+          title: 'First Step',
+          description: 'Logged your very first habit check-in.',
+          icon: Icons.military_tech_rounded,
+          category: 'Milestones',
+          targetValue: 1,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AchievementsSheet(achievements: sampleAchievements),
+          ),
+        ),
+      );
+
+      expect(find.text('🏆 Achievements'), findsOneWidget);
+      expect(find.text('First Step'), findsOneWidget);
+      expect(find.text('Logged your very first habit check-in.'), findsOneWidget);
+    });
+
+    testWidgets('WeeklyReviewSheet renders weekly summary and metrics',
+        (tester) async {
+      final review = WeeklyReviewData(
+        weekStart: DateTime(2026, 10, 26),
+        weekEnd: DateTime(2026, 11, 1),
+        totalScheduled: 10,
+        totalCompleted: 8,
+        completionRate: 0.8,
+        previousWeekRate: 0.7,
+        topHabits: [],
+        missedHabits: [],
+        totalDurationMinutes: 120.0,
+        totalQuantityLogged: 16.0,
+        activeHabitsCount: 3,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: WeeklyReviewSheet(reviewData: review),
+          ),
+        ),
+      );
+
+      expect(find.text('📊 Weekly Review'), findsOneWidget);
+      expect(find.text('80%'), findsOneWidget);
+      expect(find.text('120 mins'), findsOneWidget);
+      expect(find.text('16 units'), findsOneWidget);
+    });
+
+    testWidgets('GoalsSheet renders active goals list', (tester) async {
+      final sampleGoals = [
+        Goal(
+          id: 1,
+          title: 'Run 10K',
+          category: 'Fitness',
+          symbol: 'target',
+          colorValue: 0xFF10B981,
+          isArchived: false,
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GoalsSheet(
+              goals: sampleGoals,
+              habits: [],
+              onAddGoal: (title, desc, cat, color, target) {},
+              onDeleteGoal: (id) {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('🎯 Long-Term Goals'), findsOneWidget);
+      expect(find.text('Run 10K'), findsOneWidget);
     });
   });
 }

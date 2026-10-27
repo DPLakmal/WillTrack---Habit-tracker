@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../data/database.dart';
 import 'habit_symbol_icon.dart';
 
 class HabitDialog extends StatefulWidget {
@@ -8,6 +9,11 @@ class HabitDialog extends StatefulWidget {
   final String? initialCategory;
   final String? initialSymbol;
   final int? initialColor;
+  final String? initialHabitType;
+  final String? initialRoutine;
+  final int? initialStackedHabitId;
+  final String? initialStackTrigger;
+  final int? initialGoalId;
   final String? initialScheduleType;
   final String? initialScheduleDays;
   final int? initialWeeklyTargetDays;
@@ -16,6 +22,8 @@ class HabitDialog extends StatefulWidget {
   final String? initialUnit;
   final String? initialReminderTime;
   final bool? initialIsReminderEnabled;
+  final List<Habit>? availableHabits;
+  final List<Goal>? availableGoals;
   final String title;
   final String confirmLabel;
 
@@ -26,6 +34,11 @@ class HabitDialog extends StatefulWidget {
     this.initialCategory,
     this.initialSymbol,
     this.initialColor,
+    this.initialHabitType,
+    this.initialRoutine,
+    this.initialStackedHabitId,
+    this.initialStackTrigger,
+    this.initialGoalId,
     this.initialScheduleType,
     this.initialScheduleDays,
     this.initialWeeklyTargetDays,
@@ -34,6 +47,8 @@ class HabitDialog extends StatefulWidget {
     this.initialUnit,
     this.initialReminderTime,
     this.initialIsReminderEnabled,
+    this.availableHabits,
+    this.availableGoals,
     required this.title,
     this.confirmLabel = 'Save',
   });
@@ -48,6 +63,11 @@ class HabitDialogResult {
   final String category;
   final String symbol;
   final int colorValue;
+  final String habitType;
+  final String routine;
+  final int? stackedHabitId;
+  final String? stackTrigger;
+  final int? goalId;
   final String scheduleType;
   final String scheduleDays;
   final int weeklyTargetDays;
@@ -63,6 +83,11 @@ class HabitDialogResult {
     required this.category,
     required this.symbol,
     required this.colorValue,
+    required this.habitType,
+    required this.routine,
+    this.stackedHabitId,
+    this.stackTrigger,
+    this.goalId,
     required this.scheduleType,
     required this.scheduleDays,
     required this.weeklyTargetDays,
@@ -80,14 +105,18 @@ class _HabitDialogState extends State<HabitDialog> {
   late final TextEditingController _categoryController;
   late final TextEditingController _targetValueController;
   late final TextEditingController _unitController;
+  late final TextEditingController _stackTriggerController;
   final _formKey = GlobalKey<FormState>();
 
   late String _selectedCategory;
   late String _selectedSymbol;
   late int _selectedColor;
 
-  // Numerical Goals
-  bool _hasNumericalGoal = false;
+  // Habit Type & Routine
+  late String _habitType; // 'boolean', 'quantity', 'duration'
+  late String _routine; // 'anytime', 'morning', 'afternoon', 'evening'
+  int? _stackedHabitId;
+  int? _goalId;
 
   // Scheduling
   late String _scheduleType; // 'daily', 'specific_days', 'weekly_target'
@@ -131,15 +160,24 @@ class _HabitDialogState extends State<HabitDialog> {
     _selectedSymbol = widget.initialSymbol ?? 'check';
     _selectedColor = widget.initialColor ?? HabitColors.palette[0];
 
-    _hasNumericalGoal = widget.initialTargetValue != null && widget.initialTargetValue! > 0;
+    _habitType = widget.initialHabitType ?? 'boolean';
+    _routine = widget.initialRoutine ?? 'anytime';
+    _stackedHabitId = widget.initialStackedHabitId;
+    _stackTriggerController =
+        TextEditingController(text: widget.initialStackTrigger ?? '');
+    _goalId = widget.initialGoalId;
+
     _targetValueController = TextEditingController(
       text: widget.initialTargetValue != null
           ? (widget.initialTargetValue! % 1 == 0
               ? widget.initialTargetValue!.toInt().toString()
               : widget.initialTargetValue!.toString())
-          : '',
+          : (_habitType == 'quantity' ? '10' : (_habitType == 'duration' ? '30' : '')),
     );
-    _unitController = TextEditingController(text: widget.initialUnit ?? 'mins');
+    _unitController = TextEditingController(
+      text: widget.initialUnit ??
+          (_habitType == 'quantity' ? 'pages' : (_habitType == 'duration' ? 'mins' : '')),
+    );
 
     _scheduleType = widget.initialScheduleType ?? 'daily';
     _selectedDays = (widget.initialScheduleDays ?? '')
@@ -166,11 +204,11 @@ class _HabitDialogState extends State<HabitDialog> {
       _reminderTimeOfDay = const TimeOfDay(hour: 8, minute: 0);
     }
 
-    // Auto-expand advanced options if editing existing habit with custom schedules/reminders/goals
     if (widget.initialScheduleType != null &&
         (widget.initialScheduleType != 'daily' ||
             widget.initialIsReminderEnabled == true ||
-            _hasNumericalGoal ||
+            widget.initialStackedHabitId != null ||
+            widget.initialGoalId != null ||
             (widget.initialDescription != null &&
                 widget.initialDescription!.isNotEmpty))) {
       _isAdvancedExpanded = true;
@@ -184,6 +222,7 @@ class _HabitDialogState extends State<HabitDialog> {
     _categoryController.dispose();
     _targetValueController.dispose();
     _unitController.dispose();
+    _stackTriggerController.dispose();
     super.dispose();
   }
 
@@ -204,12 +243,18 @@ class _HabitDialogState extends State<HabitDialog> {
         timeStr = '$h:$m';
       }
 
-      final double? targetVal = _hasNumericalGoal
-          ? double.tryParse(_targetValueController.text.trim())
-          : null;
-      final String? unitStr = _hasNumericalGoal && _unitController.text.trim().isNotEmpty
-          ? _unitController.text.trim()
-          : null;
+      double? targetVal;
+      String? unitStr;
+      if (_habitType != 'boolean') {
+        targetVal = double.tryParse(_targetValueController.text.trim());
+        unitStr = _unitController.text.trim().isNotEmpty
+            ? _unitController.text.trim()
+            : (_habitType == 'duration' ? 'mins' : 'units');
+      }
+
+      final stackTrigger = _stackTriggerController.text.trim().isEmpty
+          ? null
+          : _stackTriggerController.text.trim();
 
       Navigator.of(context, rootNavigator: true).pop(
         HabitDialogResult(
@@ -218,6 +263,11 @@ class _HabitDialogState extends State<HabitDialog> {
           category: category,
           symbol: _selectedSymbol,
           colorValue: _selectedColor,
+          habitType: _habitType,
+          routine: _routine,
+          stackedHabitId: _stackedHabitId,
+          stackTrigger: stackTrigger,
+          goalId: _goalId,
           scheduleType: _scheduleType,
           scheduleDays: (_selectedDays.toList()..sort()).join(','),
           weeklyTargetDays: _weeklyTarget,
@@ -283,7 +333,7 @@ class _HabitDialogState extends State<HabitDialog> {
                     autofocus: widget.initialName == null,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
-                      hintText: 'e.g. Daily Swimming, Read 30 mins',
+                      hintText: 'e.g. Morning Water, Read Books, Run',
                       filled: true,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 12),
@@ -301,7 +351,140 @@ class _HabitDialogState extends State<HabitDialog> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Category Selector Chips
+                  // Habit Type Selector (Boolean, Quantity, Duration)
+                  const Text('Habit Type',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.black.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : Colors.black.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildTypeSegment('boolean', '✓ Boolean', Icons.check_circle_outline),
+                        _buildTypeSegment('quantity', '🔢 Quantity', Icons.tag),
+                        _buildTypeSegment('duration', '⏱ Duration', Icons.timer_outlined),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Numerical Target Section (if Quantity or Duration)
+                  if (_habitType != 'boolean') ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _habitType == 'duration'
+                                    ? 'Daily Target Time'
+                                    : 'Daily Target Amount',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 13),
+                              ),
+                              const SizedBox(height: 6),
+                              TextFormField(
+                                controller: _targetValueController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(decimal: true),
+                                decoration: InputDecoration(
+                                  hintText: _habitType == 'duration' ? '30' : '10',
+                                  filled: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 12),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Unit',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700, fontSize: 13)),
+                              const SizedBox(height: 6),
+                              TextFormField(
+                                controller: _unitController,
+                                decoration: InputDecoration(
+                                  hintText: _habitType == 'duration' ? 'mins' : 'pages',
+                                  filled: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 12),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // Quick unit suggestions
+                    Wrap(
+                      spacing: 6,
+                      children: (_habitType == 'duration'
+                              ? ['mins', 'hours', 'sec']
+                              : ['pages', 'glasses', 'reps', 'steps', 'km'])
+                          .map((preset) => ActionChip(
+                                label: Text(preset, style: const TextStyle(fontSize: 11)),
+                                padding: EdgeInsets.zero,
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () {
+                                  setState(() {
+                                    _unitController.text = preset;
+                                  });
+                                },
+                              ))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // Routine Selector (Morning, Afternoon, Evening, Anytime)
+                  const Text('Routine Timing',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildRoutineChip('anytime', '⚡ Anytime'),
+                        const SizedBox(width: 6),
+                        _buildRoutineChip('morning', '🌅 Morning'),
+                        const SizedBox(width: 6),
+                        _buildRoutineChip('afternoon', '☀️ Afternoon'),
+                        const SizedBox(width: 6),
+                        _buildRoutineChip('evening', '🌙 Evening'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Category Selector
                   const Text('Category',
                       style:
                           TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
@@ -310,32 +493,22 @@ class _HabitDialogState extends State<HabitDialog> {
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: _suggestedCategories.map((cat) {
-                        final isSelected = _selectedCategory.toLowerCase() ==
-                            cat.toLowerCase();
+                        final isSelected = _selectedCategory == cat;
                         return Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: ChoiceChip(
                             label: Text(cat),
                             selected: isSelected,
-                            selectedColor: primaryColor.withValues(alpha: 0.2),
+                            selectedColor: primaryColor,
                             labelStyle: TextStyle(
                               fontSize: 12,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                               color: isSelected
-                                  ? primaryColor
-                                  : (isDark
-                                      ? Colors.white70
-                                      : Colors.black87),
+                                  ? Colors.white
+                                  : (isDark ? Colors.grey[300] : Colors.grey[800]),
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              side: BorderSide(
-                                color: isSelected
-                                    ? primaryColor
-                                    : Colors.transparent,
-                              ),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             onSelected: (selected) {
                               if (selected) {
@@ -352,11 +525,11 @@ class _HabitDialogState extends State<HabitDialog> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Icon & Color Theme Row
+                  // Icon & Color Row
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Icon Selector
+                      // Icon preview & selector
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,47 +538,47 @@ class _HabitDialogState extends State<HabitDialog> {
                                 style: TextStyle(
                                     fontWeight: FontWeight.w700, fontSize: 13)),
                             const SizedBox(height: 6),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: HabitSymbols.options.map((opt) {
+                            SizedBox(
+                              height: 44,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: HabitSymbols.options.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 6),
+                                itemBuilder: (context, idx) {
+                                  final opt = HabitSymbols.options[idx];
                                   final isSelected = _selectedSymbol == opt.key;
-                                  return Padding(
-                                    padding: const EdgeInsets.only(right: 6),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(10),
-                                      onTap: () => setState(
-                                          () => _selectedSymbol = opt.key),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(7),
-                                        decoration: BoxDecoration(
+                                  return InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () =>
+                                        setState(() => _selectedSymbol = opt.key),
+                                    child: Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? primaryColor.withValues(alpha: 0.2)
+                                            : (isDark
+                                                ? Colors.white10
+                                                : Colors.black.withValues(alpha: 0.05)),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
                                           color: isSelected
-                                              ? primaryColor.withValues(alpha: 0.2)
-                                              : (isDark
-                                                  ? Colors.grey[850]
-                                                  : Colors.grey[100]),
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                          border: Border.all(
-                                            color: isSelected
-                                                ? primaryColor
-                                                : Colors.transparent,
-                                            width: 1.5,
-                                          ),
+                                              ? primaryColor
+                                              : Colors.transparent,
+                                          width: 1.5,
                                         ),
-                                        child: Icon(
-                                          opt.icon,
+                                      ),
+                                      child: Icon(opt.icon,
                                           size: 20,
                                           color: isSelected
                                               ? primaryColor
                                               : (isDark
-                                                  ? Colors.grey[400]
-                                                  : Colors.grey[600]),
-                                        ),
-                                      ),
+                                                  ? Colors.white70
+                                                  : Colors.black54)),
                                     ),
                                   );
-                                }).toList(),
+                                },
                               ),
                             ),
                           ],
@@ -413,53 +586,77 @@ class _HabitDialogState extends State<HabitDialog> {
                       ),
                       const SizedBox(width: 12),
 
-                      // Color Selector
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Color',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700, fontSize: 13)),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: HabitColors.palette.take(4).map((cVal) {
-                              final isSelected = _selectedColor == cVal;
-                              return GestureDetector(
-                                onTap: () =>
-                                    setState(() => _selectedColor = cVal),
-                                child: Container(
-                                  margin: const EdgeInsets.only(right: 6),
-                                  width: 28,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: Color(cVal),
-                                    shape: BoxShape.circle,
-                                    border: isSelected
-                                        ? Border.all(
-                                            color: Colors.white, width: 2.5)
-                                        : null,
-                                  ),
-                                  child: isSelected
-                                      ? const Icon(Icons.check,
-                                          size: 14, color: Colors.white)
-                                      : null,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
+                      // Color Palette Picker
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Color',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 13)),
+                            const SizedBox(height: 6),
+                            SizedBox(
+                              height: 44,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: HabitColors.palette.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 6),
+                                itemBuilder: (context, idx) {
+                                  final colorInt = HabitColors.palette[idx];
+                                  final isSelected = _selectedColor == colorInt;
+                                  return InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () =>
+                                        setState(() => _selectedColor = colorInt),
+                                    child: Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: Color(colorInt),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? Colors.white
+                                              : Colors.transparent,
+                                          width: 2.5,
+                                        ),
+                                      ),
+                                      child: isSelected
+                                          ? const Icon(Icons.check,
+                                              size: 18, color: Colors.white)
+                                          : null,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
 
-                  // Expandable Advanced Options (Schedule, Reminder, Description)
+                  // Advanced Accordion Header
                   InkWell(
                     borderRadius: BorderRadius.circular(12),
                     onTap: () => setState(
                         () => _isAdvancedExpanded = !_isAdvancedExpanded),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.black.withValues(alpha: 0.03),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.black.withValues(alpha: 0.06),
+                        ),
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -469,19 +666,14 @@ class _HabitDialogState extends State<HabitDialog> {
                                 _isAdvancedExpanded
                                     ? Icons.tune
                                     : Icons.tune_outlined,
-                                size: 16,
+                                size: 18,
                                 color: primaryColor,
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _isAdvancedExpanded
-                                    ? 'Hide Schedule & Reminder'
-                                    : 'More Options (Schedule, Reminders)',
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Advanced Options',
                                 style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: primaryColor,
-                                ),
+                                    fontWeight: FontWeight.w700, fontSize: 13),
                               ),
                             ],
                           ),
@@ -489,113 +681,269 @@ class _HabitDialogState extends State<HabitDialog> {
                             _isAdvancedExpanded
                                 ? Icons.keyboard_arrow_up
                                 : Icons.keyboard_arrow_down,
-                            size: 18,
-                            color: primaryColor,
+                            size: 20,
                           ),
                         ],
                       ),
                     ),
                   ),
 
-                  // Advanced Section Body
+                  // Collapsible Advanced Settings
                   if (_isAdvancedExpanded) ...[
-                    const Divider(height: 20),
+                    const SizedBox(height: 14),
 
-                    // Description
-                    const Text('Description (Optional)',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 13)),
-                    const SizedBox(height: 6),
+                    // Habit Stacking Section
+                    const Text('Habit Stacking',
+                        style:
+                            TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Link this habit to be completed right after another habit or trigger.',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 8),
+                    if (widget.availableHabits != null &&
+                        widget.availableHabits!.isNotEmpty) ...[
+                      DropdownButtonFormField<int?>(
+                        initialValue: _stackedHabitId,
+                        decoration: InputDecoration(
+                          labelText: 'Stack after habit',
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('None (Independent Habit)'),
+                          ),
+                          ...widget.availableHabits!.map(
+                            (h) => DropdownMenuItem<int?>(
+                              value: h.id,
+                              child: Text('After: ${h.name}'),
+                            ),
+                          ),
+                        ],
+                        onChanged: (val) => setState(() => _stackedHabitId = val),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     TextFormField(
-                      controller: _descController,
-                      maxLines: 2,
+                      controller: _stackTriggerController,
                       decoration: InputDecoration(
-                        hintText: 'e.g. 40 laps freestyle, hydrate properly',
+                        labelText: 'Or custom anchor cue',
+                        hintText: 'e.g. After pouring morning coffee',
                         filled: true,
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 10),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                           borderSide: BorderSide.none,
                         ),
                       ),
                     ),
                     const SizedBox(height: 14),
 
-                    // Frequency / Schedule
-                    const Text('Frequency / Schedule',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildScheduleChip('daily', 'Every Day'),
-                          const SizedBox(width: 6),
-                          _buildScheduleChip('specific_days', 'Specific Days'),
-                          const SizedBox(width: 6),
-                          _buildScheduleChip('weekly_target', 'X / Week'),
+                    // Connect to Long-Term Goal
+                    if (widget.availableGoals != null &&
+                        widget.availableGoals!.isNotEmpty) ...[
+                      const Text('Long-Term Goal',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 13)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<int?>(
+                        initialValue: _goalId,
+                        decoration: InputDecoration(
+                          labelText: 'Connect to Goal',
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('None'),
+                          ),
+                          ...widget.availableGoals!.map(
+                            (g) => DropdownMenuItem<int?>(
+                              value: g.id,
+                              child: Text(g.title),
+                            ),
+                          ),
                         ],
+                        onChanged: (val) => setState(() => _goalId = val),
                       ),
-                    ),
-                    const SizedBox(height: 8),
+                      const SizedBox(height: 14),
+                    ],
 
-                    // Specific Days Selection
+                    // Schedule Type
+                    const Text('Schedule',
+                        style:
+                            TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        _buildScheduleChip('daily', 'Daily'),
+                        const SizedBox(width: 8),
+                        _buildScheduleChip('specific_days', 'Specific Days'),
+                        const SizedBox(width: 8),
+                        _buildScheduleChip('weekly_target', 'Times/Week'),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Specific Days Picker
                     if (_scheduleType == 'specific_days') ...[
-                      Wrap(
-                        spacing: 4,
-                        children: _weekdays.map((d) {
-                          final dayNum = d['day'] as int;
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: _weekdays.map((item) {
+                          final dayNum = item['day'] as int;
                           final isSelected = _selectedDays.contains(dayNum);
-                          return FilterChip(
-                            label: Text(d['label'] as String,
-                                style: const TextStyle(fontSize: 11)),
-                            selected: isSelected,
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            onSelected: (val) {
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () {
                               setState(() {
-                                if (val) {
-                                  _selectedDays.add(dayNum);
-                                } else {
+                                if (isSelected) {
                                   if (_selectedDays.length > 1) {
                                     _selectedDays.remove(dayNum);
                                   }
+                                } else {
+                                  _selectedDays.add(dayNum);
                                 }
                               });
                             },
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? primaryColor
+                                    : (isDark ? Colors.white10 : Colors.black12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                item['label'] as String,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected ? Colors.white : null,
+                                ),
+                              ),
+                            ),
                           );
                         }).toList(),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 14),
                     ],
 
-                    // Weekly Target Stepper
+                    // Weekly Target Slider
                     if (_scheduleType == 'weekly_target') ...[
                       Row(
                         children: [
-                          const Text('Target days per week: ',
-                              style: TextStyle(fontSize: 13)),
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline,
-                                size: 20),
-                            onPressed: _weeklyTarget > 1
-                                ? () => setState(() => _weeklyTarget--)
-                                : null,
+                          Expanded(
+                            child: Slider(
+                              value: _weeklyTarget.toDouble(),
+                              min: 1,
+                              max: 7,
+                              divisions: 6,
+                              activeColor: primaryColor,
+                              onChanged: (val) =>
+                                  setState(() => _weeklyTarget = val.round()),
+                            ),
                           ),
-                          Text('$_weeklyTarget',
-                              style: const TextStyle(
-                                  fontSize: 15, fontWeight: FontWeight.bold)),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle_outline,
-                                size: 20),
-                            onPressed: _weeklyTarget < 7
-                                ? () => setState(() => _weeklyTarget++)
-                                : null,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: primaryColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '$_weeklyTarget days / week',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: primaryColor,
+                              ),
+                            ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 14),
+                    ],
+
+                    // Reminder Notification Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Reminder Notification',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 13)),
+                        Switch(
+                          value: _isReminderEnabled,
+                          activeThumbColor: primaryColor,
+                          onChanged: (val) =>
+                              setState(() => _isReminderEnabled = val),
+                        ),
+                      ],
+                    ),
+                    if (_isReminderEnabled) ...[
                       const SizedBox(height: 6),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: _reminderTimeOfDay ??
+                                const TimeOfDay(hour: 8, minute: 0),
+                          );
+                          if (picked != null) {
+                            setState(() => _reminderTimeOfDay = picked);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.05)
+                                : Colors.black.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.1)
+                                  : Colors.black.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Reminder Time',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.w600)),
+                              Text(
+                                _reminderTimeOfDay?.format(context) ?? '08:00 AM',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
                     ],
 
                     // Start Date Picker
@@ -607,11 +955,7 @@ class _HabitDialogState extends State<HabitDialog> {
                                 fontWeight: FontWeight.w700, fontSize: 13)),
                         TextButton.icon(
                           icon: const Icon(Icons.calendar_today, size: 14),
-                          label: Text(
-                            DateFormat('MMM d, yyyy').format(_startDate),
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                          label: Text(DateFormat('MMM d, y').format(_startDate)),
                           onPressed: () async {
                             final picked = await showDatePicker(
                               context: context,
@@ -626,166 +970,52 @@ class _HabitDialogState extends State<HabitDialog> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 10),
 
-                    // Numerical Goal Toggle
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.flag_outlined, size: 16),
-                            const SizedBox(width: 6),
-                            const Text('Measurable Target Goal',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13)),
-                          ],
+                    // Description Input
+                    const Text('Description (Optional)',
+                        style:
+                            TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      controller: _descController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        hintText: 'Add extra motivation or guidelines...',
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
                         ),
-                        Switch.adaptive(
-                          value: _hasNumericalGoal,
-                          activeTrackColor: primaryColor,
-                          onChanged: (val) {
-                            setState(() => _hasNumericalGoal = val);
-                          },
-                        ),
-                      ],
-                    ),
-                    if (_hasNumericalGoal) ...[
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: TextFormField(
-                              controller: _targetValueController,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                  decimal: true),
-                              decoration: InputDecoration(
-                                hintText: 'e.g. 30',
-                                labelText: 'Target Amount',
-                                filled: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 10),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 3,
-                            child: TextFormField(
-                              controller: _unitController,
-                              decoration: InputDecoration(
-                                hintText: 'mins, ml, pages',
-                                labelText: 'Unit',
-                                filled: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 10),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
-                      const SizedBox(height: 8),
-                    ],
-
-                    // Reminder Toggle
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.notifications_active_outlined,
-                                size: 16),
-                            const SizedBox(width: 6),
-                            const Text('Daily Reminder',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13)),
-                          ],
-                        ),
-                        Switch.adaptive(
-                          value: _isReminderEnabled,
-                          activeTrackColor: primaryColor,
-                          onChanged: (val) {
-                            setState(() => _isReminderEnabled = val);
-                          },
-                        ),
-                      ],
                     ),
-                    if (_isReminderEnabled) ...[
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Reminder Time',
-                              style: TextStyle(fontSize: 13)),
-                          TextButton.icon(
-                            icon: const Icon(Icons.access_time, size: 15),
-                            label: Text(
-                              _reminderTimeOfDay != null
-                                  ? _reminderTimeOfDay!.format(context)
-                                  : '08:00 AM',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            onPressed: () async {
-                              final picked = await showTimePicker(
-                                context: context,
-                                initialTime: _reminderTimeOfDay ??
-                                    const TimeOfDay(hour: 8, minute: 0),
-                              );
-                              if (picked != null) {
-                                setState(() => _reminderTimeOfDay = picked);
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
                   ],
 
                   const SizedBox(height: 20),
 
-                  // Actions Buttons
+                  // Action Buttons
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () =>
-                              Navigator.of(context, rootNavigator: true).pop(),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text('Cancel'),
-                        ),
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.of(context, rootNavigator: true).pop(),
+                        child: const Text('Cancel'),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: _submit,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            widget.confirmLabel,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 15),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
                         ),
+                        onPressed: _submit,
+                        child: Text(widget.confirmLabel),
                       ),
                     ],
                   ),
@@ -798,16 +1028,81 @@ class _HabitDialogState extends State<HabitDialog> {
     );
   }
 
+  Widget _buildTypeSegment(String type, String label, IconData icon) {
+    final isSelected = _habitType == type;
+    final primaryColor = Color(_selectedColor);
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _habitType = type;
+            if (type == 'quantity' && _unitController.text.isEmpty) {
+              _unitController.text = 'pages';
+              _targetValueController.text = '10';
+            } else if (type == 'duration' && _unitController.text.isEmpty) {
+              _unitController.text = 'mins';
+              _targetValueController.text = '30';
+            }
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? primaryColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: isSelected ? Colors.white : null,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoutineChip(String routine, String label) {
+    final isSelected = _routine == routine;
+    final primaryColor = Color(_selectedColor);
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      selectedColor: primaryColor,
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: isSelected ? Colors.white : null,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (selected) {
+        if (selected) setState(() => _routine = routine);
+      },
+    );
+  }
+
   Widget _buildScheduleChip(String type, String label) {
     final isSelected = _scheduleType == type;
     final primaryColor = Color(_selectedColor);
-    return ChoiceChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      selected: isSelected,
-      selectedColor: primaryColor.withValues(alpha: 0.2),
-      onSelected: (val) {
-        if (val) setState(() => _scheduleType = type);
-      },
+    return Expanded(
+      child: ChoiceChip(
+        label: Text(label),
+        selected: isSelected,
+        selectedColor: primaryColor,
+        labelStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: isSelected ? Colors.white : null,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        onSelected: (selected) {
+          if (selected) setState(() => _scheduleType = type);
+        },
+      ),
     );
   }
 }

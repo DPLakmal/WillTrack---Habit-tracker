@@ -3,12 +3,17 @@ import '../../providers/habit_provider.dart';
 import 'apple_glass_card.dart';
 import 'difficulty_selector.dart';
 import 'habit_symbol_icon.dart';
+import 'quantity_duration_stepper.dart';
 
 class HabitTile extends StatelessWidget {
   final HabitItem habitItem;
   final VoidCallback onTap;
   final VoidCallback onToggle;
   final ValueChanged<int> onSelectDifficulty;
+  final ValueChanged<double>? onIncrementQuantity;
+  final ValueChanged<double>? onSetQuantity;
+  final ValueChanged<double>? onAddDurationMinutes;
+  final VoidCallback? onAddNote;
   final VoidCallback onEdit;
   final VoidCallback onArchive;
   final VoidCallback onDelete;
@@ -19,6 +24,10 @@ class HabitTile extends StatelessWidget {
     required this.onTap,
     required this.onToggle,
     required this.onSelectDifficulty,
+    this.onIncrementQuantity,
+    this.onSetQuantity,
+    this.onAddDurationMinutes,
+    this.onAddNote,
     required this.onEdit,
     required this.onArchive,
     required this.onDelete,
@@ -49,6 +58,19 @@ class HabitTile extends StatelessWidget {
     return 'Daily';
   }
 
+  String _getRoutineLabel(String routine) {
+    switch (routine.toLowerCase()) {
+      case 'morning':
+        return '🌅 Morning';
+      case 'afternoon':
+        return '☀️ Afternoon';
+      case 'evening':
+        return '🌙 Evening';
+      default:
+        return '⚡ Anytime';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -57,6 +79,8 @@ class HabitTile extends StatelessWidget {
     final habitColor = Color(habit.colorValue);
     final symbolIcon = HabitSymbols.getIcon(habit.symbol);
     final todayDifficulty = habitItem.todayDifficulty;
+    final isQuantity = habitItem.isQuantity;
+    final isDuration = habitItem.isDuration;
 
     return AppleGlassCard(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -75,8 +99,9 @@ class HabitTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Glass Check Button
+              // Glass Check Button (or Icon indicator)
               GestureDetector(
                 key: const Key('habit_toggle_button'),
                 behavior: HitTestBehavior.opaque,
@@ -84,8 +109,8 @@ class HabitTile extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 240),
                   curve: Curves.easeOutCubic,
-                  width: 36,
-                  height: 36,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: isDone
@@ -132,7 +157,7 @@ class HabitTile extends StatelessWidget {
               ),
               const SizedBox(width: 14),
 
-              // Title and category badge
+              // Title and Badges
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,7 +179,9 @@ class HabitTile extends StatelessWidget {
                         letterSpacing: -0.3,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
+
+                    // Badges Wrap (Category, Routine, Schedule, Stack, Goal)
                     Wrap(
                       spacing: 6,
                       runSpacing: 4,
@@ -182,6 +209,35 @@ class HabitTile extends StatelessWidget {
                             ),
                           ),
                         ),
+
+                        // Routine pill (if not anytime)
+                        if (habit.routine != 'anytime')
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : Colors.black.withValues(alpha: 0.04),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.12)
+                                    : Colors.black.withValues(alpha: 0.08),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Text(
+                              _getRoutineLabel(habit.routine),
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? const Color(0xFFCBD5E1)
+                                    : const Color(0xFF475569),
+                              ),
+                            ),
+                          ),
 
                         // Schedule badge
                         Container(
@@ -217,7 +273,7 @@ class HabitTile extends StatelessWidget {
                                   habit.weeklyTargetDays,
                                 ),
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 10.5,
                                   fontWeight: FontWeight.w500,
                                   color: isDark
                                       ? const Color(0xFFCBD5E1)
@@ -229,20 +285,71 @@ class HabitTile extends StatelessWidget {
                           ),
                         ),
 
-                        // Reminder badge if active
-                        if (habit.isReminderEnabled &&
-                            habit.reminderTime != null &&
-                            habit.reminderTime!.isNotEmpty)
+                        // Habit Stacking Cue Pill
+                        if (habitItem.isStacked) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2.5),
+                                horizontal: 7, vertical: 2.5),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF10B981)
-                                  .withValues(alpha: 0.12),
+                              color: habitItem.isStackAnchorCompleted
+                                  ? const Color(0xFF10B981)
+                                      .withValues(alpha: 0.18)
+                                  : (isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : Colors.black.withValues(alpha: 0.04)),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: const Color(0xFF10B981)
-                                    .withValues(alpha: 0.25),
+                                color: habitItem.isStackAnchorCompleted
+                                    ? const Color(0xFF10B981)
+                                        .withValues(alpha: 0.4)
+                                    : (isDark
+                                        ? Colors.white.withValues(alpha: 0.12)
+                                        : Colors.black.withValues(alpha: 0.08)),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.link_rounded,
+                                  size: 11,
+                                  color: habitItem.isStackAnchorCompleted
+                                      ? const Color(0xFF10B981)
+                                      : (isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B)),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  habitItem.stackedHabitName != null
+                                      ? 'After: ${habitItem.stackedHabitName!}'
+                                      : (habit.stackTrigger ?? 'Stacked'),
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: habitItem.isStackAnchorCompleted
+                                        ? const Color(0xFF10B981)
+                                        : (isDark
+                                            ? const Color(0xFFCBD5E1)
+                                            : const Color(0xFF475569)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // Linked Goal Tag
+                        if (habitItem.linkedGoalTitle != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.amber.withValues(alpha: 0.3),
                                 width: 0.8,
                               ),
                             ),
@@ -250,17 +357,57 @@ class HabitTile extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Icon(
-                                  Icons.notifications_outlined,
-                                  size: 11,
-                                  color: Color(0xFF10B981),
+                                  Icons.flag_outlined,
+                                  size: 10,
+                                  color: Colors.amber,
                                 ),
                                 const SizedBox(width: 3),
                                 Text(
-                                  habit.reminderTime!,
+                                  habitItem.linkedGoalTitle!,
                                   style: const TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF10B981),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.amber,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // Note icon if a note is attached today
+                        if (habitItem.todayNote != null &&
+                            habitItem.todayNote!.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF3B82F6)
+                                  .withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFF3B82F6)
+                                    .withValues(alpha: 0.3),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.chat_bubble_outline,
+                                  size: 10,
+                                  color: Color(0xFF3B82F6),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  habitItem.todayNote!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF3B82F6),
                                   ),
                                 ),
                               ],
@@ -286,7 +433,7 @@ class HabitTile extends StatelessWidget {
                             child: Text(
                               'Diff: $todayDifficulty/10',
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 10.5,
                                 fontWeight: FontWeight.bold,
                                 color: DifficultySelector.getColorForDifficulty(
                                     todayDifficulty),
@@ -313,6 +460,8 @@ class HabitTile extends StatelessWidget {
                 onSelected: (value) {
                   if (value == 'edit') {
                     onEdit();
+                  } else if (value == 'note') {
+                    onAddNote?.call();
                   } else if (value == 'archive') {
                     onArchive();
                   } else if (value == 'delete') {
@@ -331,12 +480,24 @@ class HabitTile extends StatelessWidget {
                     ),
                   ),
                   const PopupMenuItem(
+                    value: 'note',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_note, size: 18, color: Color(0xFF3B82F6)),
+                        SizedBox(width: 10),
+                        Text('Add Note', style: TextStyle(color: Color(0xFF3B82F6))),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
                     value: 'archive',
                     child: Row(
                       children: [
-                        Icon(Icons.archive_outlined, size: 18, color: Color(0xFFF59E0B)),
+                        Icon(Icons.archive_outlined,
+                            size: 18, color: Color(0xFFF59E0B)),
                         SizedBox(width: 10),
-                        Text('Archive', style: TextStyle(color: Color(0xFFF59E0B))),
+                        Text('Archive',
+                            style: TextStyle(color: Color(0xFFF59E0B))),
                       ],
                     ),
                   ),
@@ -344,7 +505,8 @@ class HabitTile extends StatelessWidget {
                     value: 'delete',
                     child: Row(
                       children: [
-                        Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                        Icon(Icons.delete_outline,
+                            size: 18, color: Colors.red),
                         SizedBox(width: 10),
                         Text('Delete', style: TextStyle(color: Colors.red)),
                       ],
@@ -354,7 +516,33 @@ class HabitTile extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+
+          // Interactive Stepper for Quantity Habits
+          if (isQuantity && onIncrementQuantity != null && onSetQuantity != null) ...[
+            const SizedBox(height: 12),
+            QuantityStepper(
+              currentLogged: habitItem.todayValueLogged ?? 0.0,
+              targetValue: habit.targetValue ?? 0.0,
+              unit: habit.unit ?? 'units',
+              activeColor: habitColor,
+              onIncrement: onIncrementQuantity!,
+              onSetValue: onSetQuantity!,
+            ),
+          ],
+
+          // Interactive Stepper for Duration Habits
+          if (isDuration && onAddDurationMinutes != null) ...[
+            const SizedBox(height: 12),
+            DurationStepper(
+              currentLogged: habitItem.todayValueLogged ?? 0.0,
+              targetMinutes: habit.targetValue ?? 0.0,
+              unit: habit.unit ?? 'mins',
+              activeColor: habitColor,
+              onAddMinutes: onAddDurationMinutes!,
+            ),
+          ],
+
+          const SizedBox(height: 12),
 
           // Rating effort prompt
           Row(

@@ -260,6 +260,11 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
   }
 
   void _editHabit(BuildContext context, HabitProvider provider) async {
+    final otherHabits = provider.allHabitItems
+        .map((i) => i.habit)
+        .where((h) => h.id != _currentHabit.id)
+        .toList();
+
     final result = await showDialog<HabitDialogResult>(
       context: context,
       builder: (ctx) => HabitDialog(
@@ -269,6 +274,11 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         initialCategory: _currentHabit.category,
         initialSymbol: _currentHabit.symbol,
         initialColor: _currentHabit.colorValue,
+        initialHabitType: _currentHabit.habitType,
+        initialRoutine: _currentHabit.routine,
+        initialStackedHabitId: _currentHabit.stackedHabitId,
+        initialStackTrigger: _currentHabit.stackTrigger,
+        initialGoalId: _currentHabit.goalId,
         initialScheduleType: _currentHabit.scheduleType,
         initialScheduleDays: _currentHabit.scheduleDays,
         initialWeeklyTargetDays: _currentHabit.weeklyTargetDays,
@@ -277,6 +287,8 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         initialUnit: _currentHabit.unit,
         initialReminderTime: _currentHabit.reminderTime,
         initialIsReminderEnabled: _currentHabit.isReminderEnabled,
+        availableHabits: otherHabits,
+        availableGoals: provider.goals,
         confirmLabel: 'Update',
       ),
     );
@@ -289,6 +301,11 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         category: result.category,
         symbol: result.symbol,
         colorValue: result.colorValue,
+        habitType: result.habitType,
+        routine: result.routine,
+        stackedHabitId: result.stackedHabitId,
+        stackTrigger: result.stackTrigger,
+        goalId: result.goalId,
         scheduleType: result.scheduleType,
         scheduleDays: result.scheduleDays,
         weeklyTargetDays: result.weeklyTargetDays,
@@ -373,7 +390,9 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -391,6 +410,63 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                                         ),
                                       ),
                                     ),
+                                    if (_currentHabit.routine != 'anytime')
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          _currentHabit.routine == 'morning'
+                                              ? '🌅 Morning'
+                                              : (_currentHabit.routine == 'afternoon'
+                                                  ? '☀️ Afternoon'
+                                                  : '🌙 Evening'),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF3B82F6),
+                                          ),
+                                        ),
+                                      ),
+                                    if (_currentHabit.habitType != 'boolean')
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          _currentHabit.habitType == 'duration'
+                                              ? '⏱ Duration (${_currentHabit.targetValue?.round() ?? 30} ${_currentHabit.unit ?? 'mins'})'
+                                              : '🔢 Quantity (${_currentHabit.targetValue?.round() ?? 10} ${_currentHabit.unit ?? 'units'})',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF8B5CF6),
+                                          ),
+                                        ),
+                                      ),
+                                    if (_currentHabit.stackTrigger != null && _currentHabit.stackTrigger!.isNotEmpty)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          '🔗 ${_currentHabit.stackTrigger}',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF10B981),
+                                          ),
+                                        ),
+                                      ),
                                   ],
                                 ),
                                 const SizedBox(height: 6),

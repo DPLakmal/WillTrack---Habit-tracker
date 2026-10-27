@@ -14,6 +14,23 @@ class Habits extends Table {
   IntColumn get colorValue =>
       integer().withDefault(const Constant(0xFF10B981))();
 
+  // Habit Type: 'boolean', 'quantity', 'duration'
+  TextColumn get habitType =>
+      text().withDefault(const Constant('boolean'))();
+
+  // Routine: 'anytime', 'morning', 'afternoon', 'evening'
+  TextColumn get routine =>
+      text().withDefault(const Constant('anytime'))();
+
+  // Habit Stacking
+  IntColumn get stackedHabitId =>
+      integer().nullable().references(Habits, #id, onDelete: KeyAction.setNull)();
+  TextColumn get stackTrigger => text().nullable()();
+
+  // Connected Goal
+  IntColumn get goalId =>
+      integer().nullable().references(Goals, #id, onDelete: KeyAction.setNull)();
+
   // Scheduling: 'daily', 'specific_days', 'weekly_target'
   TextColumn get scheduleType =>
       text().withDefault(const Constant('daily'))();
@@ -61,12 +78,36 @@ class CheckIns extends Table {
       dateTime().withDefault(currentDateAndTime)();
 }
 
-@DriftDatabase(tables: [Habits, CheckIns])
+class Goals extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get title => text().withLength(min: 1, max: 255)();
+  TextColumn get description => text().nullable()();
+  TextColumn get category =>
+      text().withDefault(const Constant('General'))();
+  TextColumn get symbol =>
+      text().withDefault(const Constant('target'))();
+  IntColumn get colorValue =>
+      integer().withDefault(const Constant(0xFF10B981))();
+  DateTimeColumn get targetDate => dateTime().nullable()();
+  BoolColumn get isArchived =>
+      boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt =>
+      dateTime().withDefault(currentDateAndTime)();
+}
+
+class AchievementUnlocks extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get badgeKey => text().withLength(min: 1, max: 64)();
+  DateTimeColumn get unlockedAt =>
+      dateTime().withDefault(currentDateAndTime)();
+}
+
+@DriftDatabase(tables: [Habits, CheckIns, Goals, AchievementUnlocks])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
@@ -87,6 +128,14 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
               'ALTER TABLE "$table" ADD COLUMN "$column" $definition;',
             );
+          }
+        }
+
+        Future<void> createTableIfNotExists(TableInfo table) async {
+          try {
+            await m.createTable(table);
+          } catch (_) {
+            // Already created or partially migrated
           }
         }
 
@@ -114,6 +163,15 @@ class AppDatabase extends _$AppDatabase {
           await addColumnIfNotExists('habits', 'target_value', "REAL NULL");
           await addColumnIfNotExists('habits', 'unit', "TEXT NULL");
           await addColumnIfNotExists('check_ins', 'value_logged', "REAL NULL");
+        }
+        if (from < 6) {
+          await createTableIfNotExists(goals);
+          await createTableIfNotExists(achievementUnlocks);
+          await addColumnIfNotExists('habits', 'habit_type', "TEXT NOT NULL DEFAULT 'boolean'");
+          await addColumnIfNotExists('habits', 'routine', "TEXT NOT NULL DEFAULT 'anytime'");
+          await addColumnIfNotExists('habits', 'stacked_habit_id', "INTEGER NULL");
+          await addColumnIfNotExists('habits', 'stack_trigger', "TEXT NULL");
+          await addColumnIfNotExists('habits', 'goal_id', "INTEGER NULL");
         }
       },
     );
@@ -162,6 +220,11 @@ class AppDatabase extends _$AppDatabase {
     String category = 'General',
     String symbol = 'check',
     int colorValue = 0xFF10B981,
+    String habitType = 'boolean',
+    String routine = 'anytime',
+    int? stackedHabitId,
+    String? stackTrigger,
+    int? goalId,
     String scheduleType = 'daily',
     String scheduleDays = '',
     int weeklyTargetDays = 7,
@@ -178,6 +241,11 @@ class AppDatabase extends _$AppDatabase {
         category: Value(category.trim()),
         symbol: Value(symbol),
         colorValue: Value(colorValue),
+        habitType: Value(habitType),
+        routine: Value(routine),
+        stackedHabitId: Value(stackedHabitId),
+        stackTrigger: Value(stackTrigger?.trim()),
+        goalId: Value(goalId),
         scheduleType: Value(scheduleType),
         scheduleDays: Value(scheduleDays),
         weeklyTargetDays: Value(weeklyTargetDays),
@@ -197,6 +265,11 @@ class AppDatabase extends _$AppDatabase {
     required String category,
     required String symbol,
     required int colorValue,
+    String habitType = 'boolean',
+    String routine = 'anytime',
+    int? stackedHabitId,
+    String? stackTrigger,
+    int? goalId,
     String scheduleType = 'daily',
     String scheduleDays = '',
     int weeklyTargetDays = 7,
@@ -214,6 +287,11 @@ class AppDatabase extends _$AppDatabase {
             category: Value(category.trim()),
             symbol: Value(symbol),
             colorValue: Value(colorValue),
+            habitType: Value(habitType),
+            routine: Value(routine),
+            stackedHabitId: Value(stackedHabitId),
+            stackTrigger: Value(stackTrigger?.trim()),
+            goalId: Value(goalId),
             scheduleType: Value(scheduleType),
             scheduleDays: Value(scheduleDays),
             weeklyTargetDays: Value(weeklyTargetDays),
@@ -347,5 +425,102 @@ class AppDatabase extends _$AppDatabase {
         );
       }
     }
+  }
+
+  // Goals Queries & Streams
+  Stream<List<Goal>> watchGoals() {
+    return (select(goals)
+          ..where((tbl) => tbl.isArchived.equals(false))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.id)]))
+        .watch();
+  }
+
+  Future<List<Goal>> getActiveGoals() {
+    return (select(goals)
+          ..where((tbl) => tbl.isArchived.equals(false))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.id)]))
+        .get();
+  }
+
+  Future<Goal?> getGoalById(int id) {
+    return (select(goals)..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
+  }
+
+  Future<int> addGoal(
+    String title, {
+    String? description,
+    String category = 'General',
+    String symbol = 'target',
+    int colorValue = 0xFF10B981,
+    DateTime? targetDate,
+  }) {
+    return into(goals).insert(
+      GoalsCompanion.insert(
+        title: title.trim(),
+        description: Value(description?.trim()),
+        category: Value(category.trim()),
+        symbol: Value(symbol),
+        colorValue: Value(colorValue),
+        targetDate: Value(targetDate),
+      ),
+    );
+  }
+
+  Future<bool> updateGoalDetails(
+    int id, {
+    required String title,
+    String? description,
+    required String category,
+    required String symbol,
+    required int colorValue,
+    DateTime? targetDate,
+  }) {
+    return (update(goals)..where((tbl) => tbl.id.equals(id)))
+        .write(
+          GoalsCompanion(
+            title: Value(title.trim()),
+            description: Value(description?.trim()),
+            category: Value(category.trim()),
+            symbol: Value(symbol),
+            colorValue: Value(colorValue),
+            targetDate: Value(targetDate),
+          ),
+        )
+        .then((rows) => rows > 0);
+  }
+
+  Future<bool> archiveGoal(int id) {
+    return (update(goals)..where((tbl) => tbl.id.equals(id)))
+        .write(const GoalsCompanion(isArchived: Value(true)))
+        .then((rows) => rows > 0);
+  }
+
+  Future<int> deleteGoal(int id) {
+    return (delete(goals)..where((tbl) => tbl.id.equals(id))).go();
+  }
+
+  // Achievements Queries & Streams
+  Stream<List<AchievementUnlock>> watchUnlockedBadges() {
+    return (select(achievementUnlocks)
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.unlockedAt)]))
+        .watch();
+  }
+
+  Future<List<AchievementUnlock>> getUnlockedBadges() {
+    return (select(achievementUnlocks)
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.unlockedAt)]))
+        .get();
+  }
+
+  Future<bool> unlockBadge(String badgeKey) async {
+    final existing = await (select(achievementUnlocks)
+          ..where((tbl) => tbl.badgeKey.equals(badgeKey)))
+        .getSingleOrNull();
+    if (existing != null) return false;
+
+    await into(achievementUnlocks).insert(
+      AchievementUnlocksCompanion.insert(badgeKey: badgeKey),
+    );
+    return true;
   }
 }
