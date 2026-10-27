@@ -69,12 +69,17 @@ void main() {
       expect(find.text('🎉 All done for today! Keep it up!'), findsOneWidget);
     });
 
-    testWidgets('HabitTile displays habit and fires callbacks', (tester) async {
+    testWidgets('HabitTile displays habit with category and fires callbacks',
+        (tester) async {
       bool toggleCalled = false;
+      bool tapCalled = false;
 
       final testHabit = Habit(
         id: 1,
-        name: 'Exercise daily',
+        name: 'Daily Swimming',
+        category: 'Fitness',
+        symbol: 'pool',
+        colorValue: 0xFF06B6D4,
         createdAt: DateTime.now(),
         isArchived: false,
       );
@@ -84,6 +89,7 @@ void main() {
           home: Scaffold(
             body: HabitTile(
               habitItem: HabitItem(habit: testHabit, isCompletedToday: false),
+              onTap: () => tapCalled = true,
               onToggle: () => toggleCalled = true,
               onEdit: () {},
               onDelete: () {},
@@ -92,17 +98,23 @@ void main() {
         ),
       );
 
-      expect(find.text('Exercise daily'), findsOneWidget);
-      expect(find.byIcon(Icons.check), findsNothing);
+      expect(find.text('Daily Swimming'), findsOneWidget);
+      expect(find.text('Fitness'), findsOneWidget);
 
-      await tester.tap(find.text('Exercise daily'));
+      await tester.tap(find.text('Daily Swimming'));
+      expect(tapCalled, isTrue);
+
+      await tester.tap(find.byKey(const Key('habit_toggle_button')));
       expect(toggleCalled, isTrue);
     });
 
-    testWidgets('HabitTile shows checkmark when completed', (tester) async {
+    testWidgets('HabitTile shows custom symbol when completed', (tester) async {
       final testHabit = Habit(
         id: 1,
         name: 'Drink water',
+        category: 'Health',
+        symbol: 'water',
+        colorValue: 0xFF06B6D4,
         createdAt: DateTime.now(),
         isArchived: false,
       );
@@ -112,6 +124,7 @@ void main() {
           home: Scaffold(
             body: HabitTile(
               habitItem: HabitItem(habit: testHabit, isCompletedToday: true),
+              onTap: () {},
               onToggle: () {},
               onEdit: () {},
               onDelete: () {},
@@ -121,7 +134,7 @@ void main() {
       );
 
       expect(find.text('Drink water'), findsOneWidget);
-      expect(find.byIcon(Icons.check), findsOneWidget);
+      expect(find.byIcon(Icons.water_drop), findsOneWidget);
     });
 
     testWidgets('HabitDialog validates empty inputs', (tester) async {

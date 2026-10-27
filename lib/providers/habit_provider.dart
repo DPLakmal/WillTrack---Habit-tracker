@@ -16,6 +16,7 @@ class HabitItem {
 class HabitProvider extends ChangeNotifier {
   final AppDatabase database;
   ThemeMode _themeMode = ThemeMode.system;
+  String _selectedCategory = 'All';
 
   List<Habit> _habits = [];
   List<int> _todayCompletedHabitIds = [];
@@ -28,8 +29,8 @@ class HabitProvider extends ChangeNotifier {
   }
 
   ThemeMode get themeMode => _themeMode;
-
   bool get isDarkMode => _themeMode == ThemeMode.dark;
+  String get selectedCategory => _selectedCategory;
 
   void toggleTheme() {
     if (_themeMode == ThemeMode.dark) {
@@ -37,6 +38,11 @@ class HabitProvider extends ChangeNotifier {
     } else {
       _themeMode = ThemeMode.dark;
     }
+    notifyListeners();
+  }
+
+  void setSelectedCategory(String category) {
+    _selectedCategory = category;
     notifyListeners();
   }
 
@@ -61,7 +67,14 @@ class HabitProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<HabitItem> get habitItems {
+  List<String> get categories {
+    final defaultCategories = ['All', 'General', 'Fitness', 'Health', 'Learning', 'Mindfulness'];
+    final existingFromHabits = _habits.map((h) => h.category).toSet();
+    final combined = {...defaultCategories, ...existingFromHabits}.toList();
+    return combined;
+  }
+
+  List<HabitItem> get allHabitItems {
     final completedSet = _todayCompletedHabitIds.toSet();
     return _habits.map((habit) {
       return HabitItem(
@@ -69,6 +82,14 @@ class HabitProvider extends ChangeNotifier {
         isCompletedToday: completedSet.contains(habit.id),
       );
     }).toList();
+  }
+
+  List<HabitItem> get habitItems {
+    final all = allHabitItems;
+    if (_selectedCategory == 'All') {
+      return all;
+    }
+    return all.where((item) => item.habit.category.toLowerCase() == _selectedCategory.toLowerCase()).toList();
   }
 
   int get totalCount => _habits.length;
@@ -87,15 +108,37 @@ class HabitProvider extends ChangeNotifier {
     return (progressPercentage * 100).round();
   }
 
-  Future<void> addHabit(String name) async {
+  Future<void> addHabit(
+    String name, {
+    String category = 'General',
+    String symbol = 'check',
+    int colorValue = 0xFF10B981,
+  }) async {
     if (name.trim().isEmpty) return;
-    await database.addHabit(name);
+    await database.addHabit(
+      name,
+      category: category,
+      symbol: symbol,
+      colorValue: colorValue,
+    );
     await refresh();
   }
 
-  Future<void> editHabit(int id, String newName) async {
+  Future<void> editHabit(
+    int id,
+    String newName, {
+    String category = 'General',
+    String symbol = 'check',
+    int colorValue = 0xFF10B981,
+  }) async {
     if (newName.trim().isEmpty) return;
-    await database.updateHabitName(id, newName);
+    await database.updateHabitDetails(
+      id,
+      name: newName,
+      category: category,
+      symbol: symbol,
+      colorValue: colorValue,
+    );
     await refresh();
   }
 
@@ -106,6 +149,25 @@ class HabitProvider extends ChangeNotifier {
 
   Future<void> toggleHabitCompletion(int habitId) async {
     await database.toggleCheckIn(habitId, todayString);
+    await refresh();
+  }
+
+  Stream<List<CheckIn>> watchHabitHistory(int habitId) {
+    return database.watchCheckInsForHabit(habitId);
+  }
+
+  Future<void> updateDayLog(
+    int habitId,
+    String dateStr, {
+    required String status,
+    String? note,
+  }) async {
+    await database.setCheckInStatusAndNote(
+      habitId,
+      dateStr,
+      status: status,
+      note: note,
+    );
     await refresh();
   }
 

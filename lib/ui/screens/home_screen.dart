@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../data/database.dart';
 import '../../providers/habit_provider.dart';
 import '../widgets/daily_progress_card.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/habit_dialog.dart';
 import '../widgets/habit_tile.dart';
+import 'habit_detail_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   Future<void> _showAddHabitDialog(BuildContext context) async {
     final provider = context.read<HabitProvider>();
-    final newName = await showDialog<String>(
+    final result = await showDialog<HabitDialogResult>(
       context: context,
       builder: (ctx) => const HabitDialog(
         title: 'New Habit',
@@ -19,25 +21,39 @@ class HomeScreen extends StatelessWidget {
       ),
     );
 
-    if (newName != null && newName.isNotEmpty) {
-      await provider.addHabit(newName);
+    if (result != null && result.name.isNotEmpty) {
+      await provider.addHabit(
+        result.name,
+        category: result.category,
+        symbol: result.symbol,
+        colorValue: result.colorValue,
+      );
     }
   }
 
   Future<void> _showEditHabitDialog(
-      BuildContext context, int habitId, String currentName) async {
+      BuildContext context, Habit habit) async {
     final provider = context.read<HabitProvider>();
-    final updatedName = await showDialog<String>(
+    final result = await showDialog<HabitDialogResult>(
       context: context,
       builder: (ctx) => HabitDialog(
         title: 'Edit Habit',
-        initialName: currentName,
+        initialName: habit.name,
+        initialCategory: habit.category,
+        initialSymbol: habit.symbol,
+        initialColor: habit.colorValue,
         confirmLabel: 'Update',
       ),
     );
 
-    if (updatedName != null && updatedName.isNotEmpty) {
-      await provider.editHabit(habitId, updatedName);
+    if (result != null && result.name.isNotEmpty) {
+      await provider.editHabit(
+        habit.id,
+        result.name,
+        category: result.category,
+        symbol: result.symbol,
+        colorValue: result.colorValue,
+      );
     }
   }
 
@@ -75,6 +91,9 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<HabitProvider>();
     final habitItems = provider.habitItems;
+    final allHabits = provider.allHabitItems;
+    final categories = provider.categories;
+    final selectedCategory = provider.selectedCategory;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -104,7 +123,7 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       body: SafeArea(
-        child: habitItems.isEmpty
+        child: allHabits.isEmpty
             ? EmptyStateWidget(onAddHabit: () => _showAddHabitDialog(context))
             : CustomScrollView(
                 slivers: [
@@ -118,40 +137,107 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
 
-                  // Section Header: "TODAY'S HABITS"
+                  // Category Filter Chips
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                      child: Text(
-                        "TODAY'S HABITS",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: SizedBox(
+                        height: 38,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: categories.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final cat = categories[index];
+                            final isSelected = selectedCategory.toLowerCase() == cat.toLowerCase();
+                            return ChoiceChip(
+                              label: Text(cat),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                if (selected) {
+                                  provider.setSelectedCategory(cat);
+                                }
+                              },
+                            );
+                          },
                         ),
                       ),
                     ),
                   ),
 
-                  // Habit items list
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final item = habitItems[index];
-                        return HabitTile(
-                          habitItem: item,
-                          onToggle: () =>
-                              provider.toggleHabitCompletion(item.habit.id),
-                          onEdit: () => _showEditHabitDialog(
-                              context, item.habit.id, item.habit.name),
-                          onDelete: () => _confirmDeleteHabit(
-                              context, item.habit.id, item.habit.name),
-                        );
-                      },
-                      childCount: habitItems.length,
+                  // Section Header: "TODAY'S HABITS"
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            selectedCategory == 'All'
+                                ? "TODAY'S HABITS"
+                                : "${selectedCategory.toUpperCase()} HABITS",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            ),
+                          ),
+                          Text(
+                            '${habitItems.length} habit${habitItems.length == 1 ? '' : 's'}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.grey[500] : Colors.grey[400],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+
+                  // Habit items list
+                  if (habitItems.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Center(
+                          child: Text(
+                            'No habits in "$selectedCategory" category',
+                            style: TextStyle(
+                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final item = habitItems[index];
+                          return HabitTile(
+                            habitItem: item,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      HabitDetailScreen(habit: item.habit),
+                                ),
+                              );
+                            },
+                            onToggle: () =>
+                                provider.toggleHabitCompletion(item.habit.id),
+                            onEdit: () => _showEditHabitDialog(
+                                context, item.habit),
+                            onDelete: () => _confirmDeleteHabit(
+                                context, item.habit.id, item.habit.name),
+                          );
+                        },
+                        childCount: habitItems.length,
+                      ),
+                    ),
 
                   const SliverToBoxAdapter(
                     child: SizedBox(height: 80),

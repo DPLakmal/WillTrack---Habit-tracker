@@ -34,6 +34,40 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('General'),
+  );
+  static const VerificationMeta _symbolMeta = const VerificationMeta('symbol');
+  @override
+  late final GeneratedColumn<String> symbol = GeneratedColumn<String>(
+    'symbol',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('check'),
+  );
+  static const VerificationMeta _colorValueMeta = const VerificationMeta(
+    'colorValue',
+  );
+  @override
+  late final GeneratedColumn<int> colorValue = GeneratedColumn<int>(
+    'color_value',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0xFF10B981),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -62,7 +96,15 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     defaultValue: const Constant(false),
   );
   @override
-  List<GeneratedColumn> get $columns => [id, name, createdAt, isArchived];
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    category,
+    symbol,
+    colorValue,
+    createdAt,
+    isArchived,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -85,6 +127,24 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
       );
     } else if (isInserting) {
       context.missing(_nameMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
+    if (data.containsKey('symbol')) {
+      context.handle(
+        _symbolMeta,
+        symbol.isAcceptableOrUnknown(data['symbol']!, _symbolMeta),
+      );
+    }
+    if (data.containsKey('color_value')) {
+      context.handle(
+        _colorValueMeta,
+        colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
+      );
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -115,6 +175,18 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      )!,
+      symbol: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}symbol'],
+      )!,
+      colorValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color_value'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -135,11 +207,17 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
 class Habit extends DataClass implements Insertable<Habit> {
   final int id;
   final String name;
+  final String category;
+  final String symbol;
+  final int colorValue;
   final DateTime createdAt;
   final bool isArchived;
   const Habit({
     required this.id,
     required this.name,
+    required this.category,
+    required this.symbol,
+    required this.colorValue,
     required this.createdAt,
     required this.isArchived,
   });
@@ -148,6 +226,9 @@ class Habit extends DataClass implements Insertable<Habit> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
+    map['category'] = Variable<String>(category);
+    map['symbol'] = Variable<String>(symbol);
+    map['color_value'] = Variable<int>(colorValue);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['is_archived'] = Variable<bool>(isArchived);
     return map;
@@ -157,6 +238,9 @@ class Habit extends DataClass implements Insertable<Habit> {
     return HabitsCompanion(
       id: Value(id),
       name: Value(name),
+      category: Value(category),
+      symbol: Value(symbol),
+      colorValue: Value(colorValue),
       createdAt: Value(createdAt),
       isArchived: Value(isArchived),
     );
@@ -170,6 +254,9 @@ class Habit extends DataClass implements Insertable<Habit> {
     return Habit(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
+      category: serializer.fromJson<String>(json['category']),
+      symbol: serializer.fromJson<String>(json['symbol']),
+      colorValue: serializer.fromJson<int>(json['colorValue']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       isArchived: serializer.fromJson<bool>(json['isArchived']),
     );
@@ -180,6 +267,9 @@ class Habit extends DataClass implements Insertable<Habit> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
+      'category': serializer.toJson<String>(category),
+      'symbol': serializer.toJson<String>(symbol),
+      'colorValue': serializer.toJson<int>(colorValue),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'isArchived': serializer.toJson<bool>(isArchived),
     };
@@ -188,11 +278,17 @@ class Habit extends DataClass implements Insertable<Habit> {
   Habit copyWith({
     int? id,
     String? name,
+    String? category,
+    String? symbol,
+    int? colorValue,
     DateTime? createdAt,
     bool? isArchived,
   }) => Habit(
     id: id ?? this.id,
     name: name ?? this.name,
+    category: category ?? this.category,
+    symbol: symbol ?? this.symbol,
+    colorValue: colorValue ?? this.colorValue,
     createdAt: createdAt ?? this.createdAt,
     isArchived: isArchived ?? this.isArchived,
   );
@@ -200,6 +296,11 @@ class Habit extends DataClass implements Insertable<Habit> {
     return Habit(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
+      category: data.category.present ? data.category.value : this.category,
+      symbol: data.symbol.present ? data.symbol.value : this.symbol,
+      colorValue: data.colorValue.present
+          ? data.colorValue.value
+          : this.colorValue,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       isArchived: data.isArchived.present
           ? data.isArchived.value
@@ -212,6 +313,9 @@ class Habit extends DataClass implements Insertable<Habit> {
     return (StringBuffer('Habit(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('category: $category, ')
+          ..write('symbol: $symbol, ')
+          ..write('colorValue: $colorValue, ')
           ..write('createdAt: $createdAt, ')
           ..write('isArchived: $isArchived')
           ..write(')'))
@@ -219,13 +323,24 @@ class Habit extends DataClass implements Insertable<Habit> {
   }
 
   @override
-  int get hashCode => Object.hash(id, name, createdAt, isArchived);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    category,
+    symbol,
+    colorValue,
+    createdAt,
+    isArchived,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Habit &&
           other.id == this.id &&
           other.name == this.name &&
+          other.category == this.category &&
+          other.symbol == this.symbol &&
+          other.colorValue == this.colorValue &&
           other.createdAt == this.createdAt &&
           other.isArchived == this.isArchived);
 }
@@ -233,29 +348,44 @@ class Habit extends DataClass implements Insertable<Habit> {
 class HabitsCompanion extends UpdateCompanion<Habit> {
   final Value<int> id;
   final Value<String> name;
+  final Value<String> category;
+  final Value<String> symbol;
+  final Value<int> colorValue;
   final Value<DateTime> createdAt;
   final Value<bool> isArchived;
   const HabitsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
+    this.category = const Value.absent(),
+    this.symbol = const Value.absent(),
+    this.colorValue = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.isArchived = const Value.absent(),
   });
   HabitsCompanion.insert({
     this.id = const Value.absent(),
     required String name,
+    this.category = const Value.absent(),
+    this.symbol = const Value.absent(),
+    this.colorValue = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.isArchived = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Habit> custom({
     Expression<int>? id,
     Expression<String>? name,
+    Expression<String>? category,
+    Expression<String>? symbol,
+    Expression<int>? colorValue,
     Expression<DateTime>? createdAt,
     Expression<bool>? isArchived,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
+      if (category != null) 'category': category,
+      if (symbol != null) 'symbol': symbol,
+      if (colorValue != null) 'color_value': colorValue,
       if (createdAt != null) 'created_at': createdAt,
       if (isArchived != null) 'is_archived': isArchived,
     });
@@ -264,12 +394,18 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   HabitsCompanion copyWith({
     Value<int>? id,
     Value<String>? name,
+    Value<String>? category,
+    Value<String>? symbol,
+    Value<int>? colorValue,
     Value<DateTime>? createdAt,
     Value<bool>? isArchived,
   }) {
     return HabitsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
+      category: category ?? this.category,
+      symbol: symbol ?? this.symbol,
+      colorValue: colorValue ?? this.colorValue,
       createdAt: createdAt ?? this.createdAt,
       isArchived: isArchived ?? this.isArchived,
     );
@@ -283,6 +419,15 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (symbol.present) {
+      map['symbol'] = Variable<String>(symbol.value);
+    }
+    if (colorValue.present) {
+      map['color_value'] = Variable<int>(colorValue.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -298,6 +443,9 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     return (StringBuffer('HabitsCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('category: $category, ')
+          ..write('symbol: $symbol, ')
+          ..write('colorValue: $colorValue, ')
           ..write('createdAt: $createdAt, ')
           ..write('isArchived: $isArchived')
           ..write(')'))
@@ -350,6 +498,25 @@ class $CheckInsTable extends CheckIns with TableInfo<$CheckInsTable, CheckIn> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('completed'),
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _completedAtMeta = const VerificationMeta(
     'completedAt',
   );
@@ -363,7 +530,14 @@ class $CheckInsTable extends CheckIns with TableInfo<$CheckInsTable, CheckIn> {
     defaultValue: currentDateAndTime,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, habitId, date, completedAt];
+  List<GeneratedColumn> get $columns => [
+    id,
+    habitId,
+    date,
+    status,
+    note,
+    completedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -395,6 +569,18 @@ class $CheckInsTable extends CheckIns with TableInfo<$CheckInsTable, CheckIn> {
     } else if (isInserting) {
       context.missing(_dateMeta);
     }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
     if (data.containsKey('completed_at')) {
       context.handle(
         _completedAtMeta,
@@ -425,6 +611,14 @@ class $CheckInsTable extends CheckIns with TableInfo<$CheckInsTable, CheckIn> {
         DriftSqlType.string,
         data['${effectivePrefix}date'],
       )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
       completedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}completed_at'],
@@ -442,11 +636,15 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
   final int id;
   final int habitId;
   final String date;
+  final String status;
+  final String? note;
   final DateTime completedAt;
   const CheckIn({
     required this.id,
     required this.habitId,
     required this.date,
+    required this.status,
+    this.note,
     required this.completedAt,
   });
   @override
@@ -455,6 +653,10 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
     map['id'] = Variable<int>(id);
     map['habit_id'] = Variable<int>(habitId);
     map['date'] = Variable<String>(date);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
     map['completed_at'] = Variable<DateTime>(completedAt);
     return map;
   }
@@ -464,6 +666,8 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
       id: Value(id),
       habitId: Value(habitId),
       date: Value(date),
+      status: Value(status),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       completedAt: Value(completedAt),
     );
   }
@@ -477,6 +681,8 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
       id: serializer.fromJson<int>(json['id']),
       habitId: serializer.fromJson<int>(json['habitId']),
       date: serializer.fromJson<String>(json['date']),
+      status: serializer.fromJson<String>(json['status']),
+      note: serializer.fromJson<String?>(json['note']),
       completedAt: serializer.fromJson<DateTime>(json['completedAt']),
     );
   }
@@ -487,6 +693,8 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
       'id': serializer.toJson<int>(id),
       'habitId': serializer.toJson<int>(habitId),
       'date': serializer.toJson<String>(date),
+      'status': serializer.toJson<String>(status),
+      'note': serializer.toJson<String?>(note),
       'completedAt': serializer.toJson<DateTime>(completedAt),
     };
   }
@@ -495,11 +703,15 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
     int? id,
     int? habitId,
     String? date,
+    String? status,
+    Value<String?> note = const Value.absent(),
     DateTime? completedAt,
   }) => CheckIn(
     id: id ?? this.id,
     habitId: habitId ?? this.habitId,
     date: date ?? this.date,
+    status: status ?? this.status,
+    note: note.present ? note.value : this.note,
     completedAt: completedAt ?? this.completedAt,
   );
   CheckIn copyWithCompanion(CheckInsCompanion data) {
@@ -507,6 +719,8 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
       id: data.id.present ? data.id.value : this.id,
       habitId: data.habitId.present ? data.habitId.value : this.habitId,
       date: data.date.present ? data.date.value : this.date,
+      status: data.status.present ? data.status.value : this.status,
+      note: data.note.present ? data.note.value : this.note,
       completedAt: data.completedAt.present
           ? data.completedAt.value
           : this.completedAt,
@@ -519,13 +733,15 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
           ..write('id: $id, ')
           ..write('habitId: $habitId, ')
           ..write('date: $date, ')
+          ..write('status: $status, ')
+          ..write('note: $note, ')
           ..write('completedAt: $completedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, habitId, date, completedAt);
+  int get hashCode => Object.hash(id, habitId, date, status, note, completedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -533,6 +749,8 @@ class CheckIn extends DataClass implements Insertable<CheckIn> {
           other.id == this.id &&
           other.habitId == this.habitId &&
           other.date == this.date &&
+          other.status == this.status &&
+          other.note == this.note &&
           other.completedAt == this.completedAt);
 }
 
@@ -540,17 +758,23 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
   final Value<int> id;
   final Value<int> habitId;
   final Value<String> date;
+  final Value<String> status;
+  final Value<String?> note;
   final Value<DateTime> completedAt;
   const CheckInsCompanion({
     this.id = const Value.absent(),
     this.habitId = const Value.absent(),
     this.date = const Value.absent(),
+    this.status = const Value.absent(),
+    this.note = const Value.absent(),
     this.completedAt = const Value.absent(),
   });
   CheckInsCompanion.insert({
     this.id = const Value.absent(),
     required int habitId,
     required String date,
+    this.status = const Value.absent(),
+    this.note = const Value.absent(),
     this.completedAt = const Value.absent(),
   }) : habitId = Value(habitId),
        date = Value(date);
@@ -558,12 +782,16 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     Expression<int>? id,
     Expression<int>? habitId,
     Expression<String>? date,
+    Expression<String>? status,
+    Expression<String>? note,
     Expression<DateTime>? completedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (habitId != null) 'habit_id': habitId,
       if (date != null) 'date': date,
+      if (status != null) 'status': status,
+      if (note != null) 'note': note,
       if (completedAt != null) 'completed_at': completedAt,
     });
   }
@@ -572,12 +800,16 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     Value<int>? id,
     Value<int>? habitId,
     Value<String>? date,
+    Value<String>? status,
+    Value<String?>? note,
     Value<DateTime>? completedAt,
   }) {
     return CheckInsCompanion(
       id: id ?? this.id,
       habitId: habitId ?? this.habitId,
       date: date ?? this.date,
+      status: status ?? this.status,
+      note: note ?? this.note,
       completedAt: completedAt ?? this.completedAt,
     );
   }
@@ -594,6 +826,12 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
     if (date.present) {
       map['date'] = Variable<String>(date.value);
     }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
     if (completedAt.present) {
       map['completed_at'] = Variable<DateTime>(completedAt.value);
     }
@@ -606,6 +844,8 @@ class CheckInsCompanion extends UpdateCompanion<CheckIn> {
           ..write('id: $id, ')
           ..write('habitId: $habitId, ')
           ..write('date: $date, ')
+          ..write('status: $status, ')
+          ..write('note: $note, ')
           ..write('completedAt: $completedAt')
           ..write(')'))
         .toString();
@@ -638,6 +878,9 @@ typedef $$HabitsTableCreateCompanionBuilder =
     HabitsCompanion Function({
       Value<int> id,
       required String name,
+      Value<String> category,
+      Value<String> symbol,
+      Value<int> colorValue,
       Value<DateTime> createdAt,
       Value<bool> isArchived,
     });
@@ -645,6 +888,9 @@ typedef $$HabitsTableUpdateCompanionBuilder =
     HabitsCompanion Function({
       Value<int> id,
       Value<String> name,
+      Value<String> category,
+      Value<String> symbol,
+      Value<int> colorValue,
       Value<DateTime> createdAt,
       Value<bool> isArchived,
     });
@@ -689,6 +935,21 @@ class $$HabitsTableFilterComposer
 
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get symbol => $composableBuilder(
+    column: $table.symbol,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -747,6 +1008,21 @@ class $$HabitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get symbol => $composableBuilder(
+    column: $table.symbol,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -772,6 +1048,17 @@ class $$HabitsTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get symbol =>
+      $composableBuilder(column: $table.symbol, builder: (column) => column);
+
+  GeneratedColumn<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -837,11 +1124,17 @@ class $$HabitsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
+                Value<String> category = const Value.absent(),
+                Value<String> symbol = const Value.absent(),
+                Value<int> colorValue = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
               }) => HabitsCompanion(
                 id: id,
                 name: name,
+                category: category,
+                symbol: symbol,
+                colorValue: colorValue,
                 createdAt: createdAt,
                 isArchived: isArchived,
               ),
@@ -849,11 +1142,17 @@ class $$HabitsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required String name,
+                Value<String> category = const Value.absent(),
+                Value<String> symbol = const Value.absent(),
+                Value<int> colorValue = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
               }) => HabitsCompanion.insert(
                 id: id,
                 name: name,
+                category: category,
+                symbol: symbol,
+                colorValue: colorValue,
                 createdAt: createdAt,
                 isArchived: isArchived,
               ),
@@ -915,6 +1214,8 @@ typedef $$CheckInsTableCreateCompanionBuilder =
       Value<int> id,
       required int habitId,
       required String date,
+      Value<String> status,
+      Value<String?> note,
       Value<DateTime> completedAt,
     });
 typedef $$CheckInsTableUpdateCompanionBuilder =
@@ -922,6 +1223,8 @@ typedef $$CheckInsTableUpdateCompanionBuilder =
       Value<int> id,
       Value<int> habitId,
       Value<String> date,
+      Value<String> status,
+      Value<String?> note,
       Value<DateTime> completedAt,
     });
 
@@ -963,6 +1266,16 @@ class $$CheckInsTableFilterComposer
 
   ColumnFilters<String> get date => $composableBuilder(
     column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1014,6 +1327,16 @@ class $$CheckInsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get completedAt => $composableBuilder(
     column: $table.completedAt,
     builder: (column) => ColumnOrderings(column),
@@ -1057,6 +1380,12 @@ class $$CheckInsTableAnnotationComposer
 
   GeneratedColumn<String> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
 
   GeneratedColumn<DateTime> get completedAt => $composableBuilder(
     column: $table.completedAt,
@@ -1118,11 +1447,15 @@ class $$CheckInsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<int> habitId = const Value.absent(),
                 Value<String> date = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> note = const Value.absent(),
                 Value<DateTime> completedAt = const Value.absent(),
               }) => CheckInsCompanion(
                 id: id,
                 habitId: habitId,
                 date: date,
+                status: status,
+                note: note,
                 completedAt: completedAt,
               ),
           createCompanionCallback:
@@ -1130,11 +1463,15 @@ class $$CheckInsTableTableManager
                 Value<int> id = const Value.absent(),
                 required int habitId,
                 required String date,
+                Value<String> status = const Value.absent(),
+                Value<String?> note = const Value.absent(),
                 Value<DateTime> completedAt = const Value.absent(),
               }) => CheckInsCompanion.insert(
                 id: id,
                 habitId: habitId,
                 date: date,
+                status: status,
+                note: note,
                 completedAt: completedAt,
               ),
           withReferenceMapper: (p0) => p0

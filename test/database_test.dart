@@ -15,22 +15,38 @@ void main() {
   });
 
   group('Habits CRUD operations', () {
-    test('Can create a habit and read it', () async {
-      final id = await db.addHabit('Read a book');
+    test('Can create a habit with category and custom symbol', () async {
+      final id = await db.addHabit(
+        'Daily Swimming',
+        category: 'Fitness',
+        symbol: 'pool',
+        colorValue: 0xFF06B6D4,
+      );
       expect(id, 1);
 
       final habits = await db.getActiveHabits();
       expect(habits.length, 1);
-      expect(habits.first.name, 'Read a book');
+      expect(habits.first.name, 'Daily Swimming');
+      expect(habits.first.category, 'Fitness');
+      expect(habits.first.symbol, 'pool');
+      expect(habits.first.colorValue, 0xFF06B6D4);
     });
 
-    test('Can update a habit name', () async {
+    test('Can update habit details including category and symbol', () async {
       final id = await db.addHabit('Exercise');
-      final updated = await db.updateHabitName(id, 'Morning Exercise');
+      final updated = await db.updateHabitDetails(
+        id,
+        name: 'Morning Swimming',
+        category: 'Fitness',
+        symbol: 'pool',
+        colorValue: 0xFF06B6D4,
+      );
       expect(updated, isTrue);
 
       final habits = await db.getActiveHabits();
-      expect(habits.first.name, 'Morning Exercise');
+      expect(habits.first.name, 'Morning Swimming');
+      expect(habits.first.category, 'Fitness');
+      expect(habits.first.symbol, 'pool');
     });
 
     test('Can delete a habit', () async {
@@ -43,7 +59,7 @@ void main() {
     });
   });
 
-  group('Check-ins & Daily Tracking', () {
+  group('Check-ins, Notes, & Calendar Retention Tracking', () {
     test('Can complete habit and undo completion', () async {
       final id = await db.addHabit('Meditate');
       const today = '2026-10-27';
@@ -63,7 +79,40 @@ void main() {
       expect(completedIds.contains(id), isFalse);
     });
 
-    test('Deleting habit cascades and deletes its check-ins', () async {
+    test('Can log day notes and check-in statuses (e.g. for retention)', () async {
+      final id = await db.addHabit('Daily Swimming', category: 'Fitness', symbol: 'pool');
+      const day1 = '2026-10-25';
+      const day2 = '2026-10-26';
+
+      // Record day 1 with swimming laps note
+      await db.setCheckInStatusAndNote(
+        id,
+        day1,
+        status: 'completed',
+        note: 'Swam 1,500m freestyle',
+      );
+
+      // Record day 2 as skipped
+      await db.setCheckInStatusAndNote(
+        id,
+        day2,
+        status: 'skipped',
+        note: 'Pool maintenance',
+      );
+
+      final history = await db.getCheckInsForHabit(id);
+      expect(history.length, 2);
+
+      final d1Log = history.firstWhere((h) => h.date == day1);
+      expect(d1Log.status, 'completed');
+      expect(d1Log.note, 'Swam 1,500m freestyle');
+
+      final d2Log = history.firstWhere((h) => h.date == day2);
+      expect(d2Log.status, 'skipped');
+      expect(d2Log.note, 'Pool maintenance');
+    });
+
+    test('Deleting habit cascades and deletes all history logs', () async {
       final id = await db.addHabit('Study programming');
       const today = '2026-10-27';
 
